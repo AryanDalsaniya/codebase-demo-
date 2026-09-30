@@ -1,5 +1,16 @@
 venv/
+.venv/
+env/
+
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
 .env
+
 data/cloned_repo/
+data/project_info.json
+
+.vscode/
+.idea/

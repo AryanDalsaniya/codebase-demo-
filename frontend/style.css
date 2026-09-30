@@ -1,0 +1,990 @@
+/* =========================================================
+   RESET
+========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    min-height: 100vh;
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef5f1 0%,
+            #f7f8f4 50%,
+            #edf3ef 100%
+        );
+
+    color: #102c2a;
+}
+
+
+/* =========================================================
+   PAGE
+========================================================= */
+
+.page {
+    width: min(1500px, calc(100% - 80px));
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   HERO
+========================================================= */
+
+.hero {
+    padding: 55px 0 35px;
+
+    border-bottom: 1px solid #d4dfda;
+}
+
+.eyebrow {
+    margin-bottom: 14px;
+
+    color: #147c6d;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    letter-spacing: 1.8px;
+}
+
+.hero h1 {
+    font-size: clamp(48px, 6vw, 76px);
+
+    line-height: 0.98;
+
+    font-weight: 700;
+
+    letter-spacing: -3px;
+}
+
+.hero h1 span {
+    color: #147c6d;
+}
+
+.subtitle {
+    margin-top: 22px;
+
+    color: #58716e;
+
+    font-size: 20px;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   REPOSITORY CARD
+========================================================= */
+
+.repository-card {
+    margin-top: 32px;
+
+    padding: 28px 32px;
+
+    background: rgba(255, 255, 255, 0.88);
+
+    border: 1px solid #d2ddd8;
+
+    border-left: 5px solid #147c6d;
+
+    border-radius: 13px;
+
+    box-shadow:
+        0 18px 45px rgba(32, 65, 58, 0.08);
+}
+
+.section-heading {
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 14px;
+}
+
+.section-heading h2 {
+    font-size: 19px;
+}
+
+.repository-type {
+    color: #637b77;
+
+    font-size: 14px;
+}
+
+.repository-controls {
+    display: grid;
+
+    grid-template-columns: 1fr 280px;
+
+    gap: 14px;
+}
+
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+input,
+textarea {
+    width: 100%;
+
+    border: 1px solid #cbd8d3;
+
+    border-radius: 9px;
+
+    background: #fbfcfa;
+
+    color: #173532;
+
+    font-family: inherit;
+
+    font-size: 17px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
+}
+
+input {
+    height: 68px;
+
+    padding: 0 20px;
+}
+
+textarea {
+    padding: 17px;
+
+    resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+    border-color: #147c6d;
+
+    box-shadow:
+        0 0 0 3px rgba(20, 124, 109, 0.10);
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+button {
+    font-family: inherit;
+
+    cursor: pointer;
+}
+
+.primary-button {
+    min-height: 68px;
+
+    padding: 0 24px;
+
+    border: none;
+
+    border-radius: 9px;
+
+    background: #147c6d;
+
+    color: white;
+
+    font-size: 17px;
+
+    font-weight: 700;
+
+    display: flex;
+
+    justify-content: center;
+    align-items: center;
+
+    gap: 20px;
+
+    transition:
+        background 0.2s,
+        transform 0.2s,
+        box-shadow 0.2s;
+}
+
+.primary-button:hover {
+    background: #106c5f;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 8px 20px rgba(20, 124, 109, 0.20);
+}
+
+.primary-button:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+
+    transform: none;
+
+    box-shadow: none;
+}
+
+.button-arrow {
+    font-size: 24px;
+
+    font-weight: 400;
+}
+
+.secondary-button {
+    padding: 12px 20px;
+
+    border: 1px solid #147c6d;
+
+    border-radius: 8px;
+
+    background: transparent;
+
+    color: #147c6d;
+
+    font-size: 15px;
+
+    font-weight: 700;
+}
+
+.secondary-button:hover {
+    background: #eaf4f1;
+}
+
+.secondary-button:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    margin: 45px 0;
+
+    color: #58716e;
+
+    font-size: 17px;
+
+    font-weight: 600;
+}
+
+.loading-detail {
+    display: block;
+
+    margin-top: 4px;
+
+    color: #81938f;
+
+    font-size: 13px;
+
+    font-weight: 400;
+}
+
+.spinner {
+    width: 23px;
+    height: 23px;
+
+    flex-shrink: 0;
+
+    border: 3px solid #c9ddd8;
+
+    border-top-color: #147c6d;
+
+    border-radius: 50%;
+
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.error-box {
+    margin: 25px 0;
+
+    padding: 16px 18px;
+
+    border: 1px solid #e1b9b9;
+
+    border-left: 4px solid #b74444;
+
+    border-radius: 8px;
+
+    background: #fff5f5;
+
+    color: #8b3030;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   RESULTS
+========================================================= */
+
+.results {
+    padding-bottom: 80px;
+}
+
+.section {
+    margin-top: 65px;
+
+    padding-top: 30px;
+
+    border-top: 1px solid #d4dfda;
+}
+
+.section-number {
+    margin-bottom: 8px;
+
+    color: #147c6d;
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.6px;
+}
+
+.section h2 {
+    margin-bottom: 22px;
+
+    color: #102c2a;
+
+    font-size: 30px;
+
+    letter-spacing: -0.8px;
+}
+
+.section-description {
+    margin-top: -12px;
+
+    margin-bottom: 25px;
+
+    color: #617874;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   PROJECT DESCRIPTION
+========================================================= */
+
+.project-description {
+    margin-bottom: 25px;
+
+    color: #526a66;
+
+    font-size: 17px;
+
+    line-height: 1.7;
+
+    white-space: pre-wrap;
+}
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.summary-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 16px;
+}
+
+.summary-card {
+    min-height: 125px;
+
+    padding: 22px;
+
+    border: 1px solid #d2ddd8;
+
+    border-radius: 11px;
+
+    background: rgba(255, 255, 255, 0.78);
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: space-between;
+}
+
+.summary-label {
+    color: #718681;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.5px;
+}
+
+.summary-card strong {
+    color: #147c6d;
+
+    font-size: 30px;
+
+    word-break: break-word;
+}
+
+
+/* =========================================================
+   LANGUAGES
+========================================================= */
+
+.tag-list {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+}
+
+.language-tag {
+    padding: 9px 14px;
+
+    border: 1px solid #c7ddd7;
+
+    border-radius: 20px;
+
+    background: #eef7f4;
+
+    color: #176c61;
+
+    font-size: 14px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   DEPENDENCIES
+========================================================= */
+
+.dependencies {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+}
+
+.dependency-item {
+    padding: 10px 14px;
+
+    border: 1px solid #cbded8;
+
+    border-radius: 8px;
+
+    background: #f2f8f5;
+
+    color: #355650;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   IMPORTANT FILES
+========================================================= */
+
+.important-files {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.important-file {
+    padding: 17px;
+
+    border: 1px solid #d2ddd8;
+
+    border-radius: 9px;
+
+    background: rgba(255, 255, 255, 0.75);
+
+    color: #35524d;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+}
+
+.important-file:hover {
+    border-color: #147c6d;
+
+    background: #f1f8f5;
+}
+
+
+/* =========================================================
+   FILE BROWSER
+========================================================= */
+
+.file-browser {
+    min-height: 550px;
+
+    display: grid;
+
+    grid-template-columns: 330px 1fr;
+
+    overflow: hidden;
+
+    border: 1px solid #cedbd6;
+
+    border-radius: 11px;
+
+    background: #ffffff;
+}
+
+.file-tree-panel {
+    overflow-y: auto;
+
+    border-right: 1px solid #d6e0dc;
+}
+
+.file-content-panel {
+    min-width: 0;
+
+    display: flex;
+
+    flex-direction: column;
+}
+
+.panel-header {
+    min-height: 53px;
+
+    padding: 16px 18px;
+
+    border-bottom: 1px solid #d6e0dc;
+
+    background: #f4f8f6;
+
+    color: #46615d;
+
+    font-size: 13px;
+
+    font-weight: 700;
+}
+
+.file-content-panel .panel-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+}
+
+.file-path {
+    overflow: hidden;
+
+    color: #147c6d;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+
+    font-size: 12px;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+}
+
+.file-tree {
+    padding: 12px;
+}
+
+.tree-item {
+    padding: 7px 9px;
+
+    border-radius: 6px;
+
+    color: #385450;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    user-select: none;
+}
+
+.tree-item:hover {
+    background: #edf5f2;
+
+    color: #147c6d;
+}
+
+.tree-directory {
+    font-weight: 700;
+}
+
+.tree-file {
+    padding-left: 25px;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+
+    font-size: 13px;
+}
+
+.tree-children {
+    margin-left: 12px;
+
+    border-left: 1px solid #d7e2de;
+}
+
+.file-content {
+    flex: 1;
+
+    margin: 0;
+
+    padding: 22px;
+
+    overflow: auto;
+
+    background: #fbfcfb;
+
+    color: #263f3b;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        monospace;
+
+    font-size: 13px;
+
+    line-height: 1.65;
+
+    white-space: pre-wrap;
+
+    word-break: break-word;
+}
+
+
+/* =========================================================
+   AI GUIDE
+========================================================= */
+
+.guide-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    gap: 30px;
+}
+
+.guide-header h2 {
+    margin-bottom: 8px;
+}
+
+.guide-header p {
+    color: #617874;
+
+    line-height: 1.6;
+}
+
+.guide-content {
+    margin-top: 25px;
+
+    padding: 30px;
+
+    border: 1px solid #d2ddd8;
+
+    border-radius: 11px;
+
+    background: rgba(255, 255, 255, 0.85);
+
+    color: #304b47;
+
+    line-height: 1.75;
+
+    white-space: pre-wrap;
+}
+
+
+/* =========================================================
+   Q&A
+========================================================= */
+
+.question-box {
+    display: grid;
+
+    grid-template-columns: 1fr 180px;
+
+    gap: 14px;
+}
+
+.ask-button {
+    align-self: stretch;
+
+    min-height: 0;
+}
+
+.question-hint {
+    margin-top: 10px;
+
+    color: #7a8d89;
+
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+.qa-answer {
+    margin-top: 25px;
+
+    padding: 25px;
+
+    border: 1px solid #d2ddd8;
+
+    border-radius: 11px;
+
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.answer-heading,
+.sources-heading {
+    margin-bottom: 12px;
+
+    color: #147c6d;
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.4px;
+
+    text-transform: uppercase;
+}
+
+.answer-text {
+    color: #304b47;
+
+    line-height: 1.75;
+
+    white-space: pre-wrap;
+}
+
+.sources-heading {
+    margin-top: 28px;
+}
+
+.answer-sources {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+}
+
+.source-item {
+    padding: 10px 12px;
+
+    border-radius: 6px;
+
+    background: #eef5f2;
+
+    color: #42625c;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+footer {
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 25px 0 45px;
+
+    border-top: 1px solid #d4dfda;
+
+    color: #637b77;
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   UTILITY
+========================================================= */
+
+.hidden {
+    display: none !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1000px) {
+
+    .summary-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+}
+
+@media (max-width: 900px) {
+
+    .page {
+        width: min(100% - 32px, 1500px);
+    }
+
+    .repository-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .file-browser {
+        grid-template-columns: 1fr;
+    }
+
+    .file-tree-panel {
+        max-height: 300px;
+
+        border-right: none;
+
+        border-bottom: 1px solid #d6e0dc;
+    }
+
+    .important-files {
+        grid-template-columns: 1fr;
+    }
+
+    .question-box {
+        grid-template-columns: 1fr;
+    }
+
+    .ask-button {
+        min-height: 55px;
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .page {
+        width: min(100% - 22px, 1500px);
+    }
+
+    .hero {
+        padding-top: 30px;
+    }
+
+    .hero h1 {
+        font-size: 48px;
+    }
+
+    .repository-card {
+        padding: 20px;
+    }
+
+    .section {
+        margin-top: 45px;
+    }
+
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .guide-header {
+        flex-direction: column;
+    }
+
+    footer {
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+}

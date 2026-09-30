@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Codebase Onboarding Companion</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="page">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <header class="hero">
+
+        <div class="eyebrow">
+            DEVELOPER WORKSPACE / 01
+        </div>
+
+        <h1>
+            Codebase
+            <span>Onboarding</span>
+        </h1>
+
+        <p class="subtitle">
+            Get oriented in a repository, one file at a time.
+        </p>
+
+    </header>
+
+
+    <!-- =====================================================
+         REPOSITORY INPUT
+    ====================================================== -->
+
+    <section class="repository-card">
+
+        <div class="section-heading">
+
+            <h2>Repository URL</h2>
+
+            <span class="repository-type">
+                Public GitHub repository
+            </span>
+
+        </div>
+
+
+        <div class="repository-controls">
+
+            <input
+                id="repoUrl"
+                type="text"
+                value="https://github.com/psf/requests"
+                placeholder="https://github.com/username/repository"
+            >
+
+            <button
+                id="analyzeButton"
+                type="button"
+                class="primary-button"
+            >
+                <span>Analyze repository</span>
+                <span class="button-arrow">→</span>
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ANALYSIS LOADING
+    ====================================================== -->
+
+    <div
+        id="loading"
+        class="loading hidden"
+    >
+        <div class="spinner"></div>
+
+        <div>
+            <strong>Analyzing repository</strong>
+
+            <span class="loading-detail">
+                Cloning and examining the codebase...
+            </span>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         GENERAL ERROR
+    ====================================================== -->
+
+    <div
+        id="error"
+        class="error-box hidden"
+    ></div>
+
+
+    <!-- =====================================================
+         RESULTS
+    ====================================================== -->
+
+    <main
+        id="result"
+        class="results hidden"
+    >
+
+
+        <!-- =================================================
+             02 / OVERVIEW
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                02 / OVERVIEW
+            </div>
+
+            <h2>Repository Overview</h2>
+
+
+            <div
+                id="projectDescription"
+                class="project-description"
+            >
+                Repository analyzed successfully.
+            </div>
+
+
+            <!-- SUMMARY CARDS -->
+
+            <div class="summary-grid">
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        PROJECT
+                    </span>
+
+                    <strong id="projectName">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        FILES
+                    </span>
+
+                    <strong id="fileCount">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        DIRECTORIES
+                    </span>
+
+                    <strong id="directoryCount">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        LANGUAGES
+                    </span>
+
+                    <strong id="languageCount">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        CLASSES
+                    </span>
+
+                    <strong id="classCount">
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <span class="summary-label">
+                        FUNCTIONS
+                    </span>
+
+                    <strong id="functionCount">
+                        —
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             03 / LANGUAGES
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                03 / TECHNOLOGIES
+            </div>
+
+            <h2>Languages</h2>
+
+            <div
+                id="languages"
+                class="tag-list"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             04 / DEPENDENCIES
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                04 / DEPENDENCIES
+            </div>
+
+            <h2>Dependencies</h2>
+
+            <div
+                id="dependencies"
+                class="dependencies"
+            >
+                No dependencies detected.
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             05 / IMPORTANT FILES
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                05 / START HERE
+            </div>
+
+            <h2>Important Files</h2>
+
+            <div
+                id="importantFiles"
+                class="important-files"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             06 / FILE EXPLORER
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                06 / CODEBASE
+            </div>
+
+            <h2>File Explorer</h2>
+
+
+            <div class="file-browser">
+
+                <!-- FILE TREE -->
+
+                <div class="file-tree-panel">
+
+                    <div class="panel-header">
+                        Repository files
+                    </div>
+
+                    <div
+                        id="fileTree"
+                        class="file-tree"
+                    >
+                        Loading files...
+                    </div>
+
+                </div>
+
+
+                <!-- FILE CONTENT -->
+
+                <div class="file-content-panel">
+
+                    <div class="panel-header">
+
+                        <span>
+                            File preview
+                        </span>
+
+                        <span
+                            id="filePath"
+                            class="file-path"
+                        >
+                            No file selected
+                        </span>
+
+                    </div>
+
+                    <pre
+                        id="fileContent"
+                        class="file-content"
+                    >Select a file from the explorer.</pre>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             07 / AI ONBOARDING
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                07 / AI GUIDE
+            </div>
+
+            <div class="guide-header">
+
+                <div>
+
+                    <h2>
+                        AI Onboarding Guide
+                    </h2>
+
+                    <p>
+                        Llama 3.2 explains the repository
+                        for a new developer.
+                    </p>
+
+                </div>
+
+                <button
+                    id="generateGuideButton"
+                    type="button"
+                    class="secondary-button"
+                >
+                    Generate guide
+                </button>
+
+            </div>
+
+
+            <div
+                id="guideLoading"
+                class="loading hidden"
+            >
+
+                <div class="spinner"></div>
+
+                <div>
+                    <strong>
+                        Generating onboarding guide
+                    </strong>
+
+                    <span class="loading-detail">
+                        Llama 3.2 is examining the repository information...
+                    </span>
+                </div>
+
+            </div>
+
+
+            <div
+                id="guideError"
+                class="error-box hidden"
+            ></div>
+
+
+            <div
+                id="onboardingGuide"
+                class="guide-content hidden"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             08 / ASK THE CODEBASE
+        ================================================== -->
+
+        <section class="section">
+
+            <div class="section-number">
+                08 / ASK THE CODEBASE
+            </div>
+
+            <h2>Codebase Q&A</h2>
+
+            <p class="section-description">
+                Ask questions about the repository.
+                The system searches the codebase and
+                uses Llama 3.2 to generate the answer.
+            </p>
+
+
+            <div class="question-box">
+
+                <textarea
+                    id="questionInput"
+                    rows="4"
+                    placeholder="Example: Where is the Session class implemented?"
+                ></textarea>
+
+
+                <button
+                    id="askButton"
+                    type="button"
+                    class="primary-button ask-button"
+                >
+                    <span>Ask Llama</span>
+
+                    <span class="button-arrow">
+                        →
+                    </span>
+                </button>
+
+            </div>
+
+
+            <p class="question-hint">
+                Tip: Try questions such as
+                "What does this project do?",
+                "Where is the Session class implemented?",
+                or "How are HTTP requests handled?"
+            </p>
+
+
+            <div
+                id="qaLoading"
+                class="loading hidden"
+            >
+
+                <div class="spinner"></div>
+
+                <div>
+                    <strong>
+                        Searching the codebase
+                    </strong>
+
+                    <span class="loading-detail">
+                        Finding relevant code and asking Llama 3.2...
+                    </span>
+                </div>
+
+            </div>
+
+
+            <div
+                id="qaError"
+                class="error-box hidden"
+            ></div>
+
+
+            <div
+                id="qaAnswer"
+                class="qa-answer hidden"
+            >
+
+                <div class="answer-heading">
+                    Answer
+                </div>
+
+                <div
+                    id="answerText"
+                    class="answer-text"
+                ></div>
+
+
+                <div class="sources-heading">
+                    Sources
+                </div>
+
+                <div
+                    id="answerSources"
+                    class="answer-sources"
+                ></div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
+
+    <footer>
+
+        <span>
+            Codebase Onboarding Companion
+        </span>
+
+        <span>
+            Local analysis workspace
+        </span>
+
+    </footer>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
