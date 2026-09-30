@@ -1,5 +1,6 @@
 import os
 import ast
+import json
 
 
 # ---------------------------------------------------------
@@ -27,10 +28,6 @@ LANGUAGE_EXTENSIONS = {
 }
 
 
-# ---------------------------------------------------------
-# Important Project Files
-# ---------------------------------------------------------
-
 IMPORTANT_FILES = {
     "README.md": "Project documentation",
     "README.txt": "Project documentation",
@@ -54,20 +51,13 @@ IMPORTANT_FILES = {
 # ---------------------------------------------------------
 
 def analyze_repository(directory):
-    """
-    Analyze the basic structure of a repository.
-    """
 
     file_count = 0
     directory_count = 0
     language_count = {}
 
-    print("\nRepository Analysis")
-    print("===================")
-
     for root, directories, files in os.walk(directory):
 
-        # Ignore Git internal directory
         if ".git" in directories:
             directories.remove(".git")
 
@@ -88,79 +78,47 @@ def analyze_repository(directory):
 
                 language_count[language] += 1
 
-    print(
-        "Repository:",
-        os.path.basename(os.path.abspath(directory))
-    )
-
-    print("Files:", file_count)
-    print("Directories:", directory_count)
-
-    print("\nLanguages / File Types")
-    print("----------------------")
-
-    if language_count:
-
-        for language, count in sorted(language_count.items()):
-            print(f"{language}: {count} files")
-
-    else:
-
-        print("No recognized programming languages found.")
+    return file_count, directory_count, language_count
 
 
 # ---------------------------------------------------------
 # Project File Tree
 # ---------------------------------------------------------
 
-def print_file_tree(directory, prefix=""):
-    """
-    Print the repository as a tree structure.
-    """
+def build_file_tree(directory):
+
+    tree = []
 
     try:
         entries = sorted(os.listdir(directory))
     except PermissionError:
-        return
+        return tree
 
     entries = [
-        entry
-        for entry in entries
+        entry for entry in entries
         if entry != ".git"
     ]
 
-    for index, entry in enumerate(entries):
+    for entry in entries:
 
         path = os.path.join(directory, entry)
 
-        is_last = index == len(entries) - 1
-
-        if is_last:
-
-            connector = "└── "
-            new_prefix = prefix + "    "
-
-        else:
-
-            connector = "├── "
-            new_prefix = prefix + "│   "
-
         if os.path.isdir(path):
 
-            print(
-                prefix + connector + "📁 " + entry
-            )
-
-            print_file_tree(
-                path,
-                new_prefix
-            )
+            tree.append({
+                "name": entry,
+                "type": "directory",
+                "children": build_file_tree(path)
+            })
 
         else:
 
-            print(
-                prefix + connector + "📄 " + entry
-            )
+            tree.append({
+                "name": entry,
+                "type": "file"
+            })
+
+    return tree
 
 
 # ---------------------------------------------------------
@@ -168,10 +126,6 @@ def print_file_tree(directory, prefix=""):
 # ---------------------------------------------------------
 
 def find_important_files(directory):
-    """
-    Find important files that help developers
-    understand the project.
-    """
 
     found_files = []
 
@@ -184,53 +138,26 @@ def find_important_files(directory):
 
             if file in IMPORTANT_FILES:
 
-                full_path = os.path.join(
-                    root,
-                    file
-                )
+                full_path = os.path.join(root, file)
 
                 relative_path = os.path.relpath(
                     full_path,
                     directory
                 )
 
-                description = IMPORTANT_FILES[file]
+                found_files.append({
+                    "file": relative_path,
+                    "description": IMPORTANT_FILES[file]
+                })
 
-                found_files.append(
-                    (relative_path, description)
-                )
-
-    print("\nImportant Project Files")
-    print("======================")
-
-    if found_files:
-
-        for path, description in found_files:
-
-            print(
-                f"{path} → {description}"
-            )
-
-    else:
-
-        print(
-            "No important project files detected."
-        )
+    return found_files
 
 
 # ---------------------------------------------------------
-# Python Source Code Analysis
+# Python File Analysis
 # ---------------------------------------------------------
 
 def analyze_python_file(file_path):
-    """
-    Analyze one Python file using AST.
-
-    Returns:
-        classes
-        functions
-        imports
-    """
 
     classes = []
     functions = []
@@ -254,12 +181,10 @@ def analyze_python_file(file_path):
 
     for node in ast.walk(tree):
 
-        # Find classes
         if isinstance(node, ast.ClassDef):
 
             classes.append(node.name)
 
-        # Find functions
         elif isinstance(
             node,
             (ast.FunctionDef, ast.AsyncFunctionDef)
@@ -267,40 +192,31 @@ def analyze_python_file(file_path):
 
             functions.append(node.name)
 
-        # Find imports
         elif isinstance(node, ast.Import):
 
             for alias in node.names:
-
                 imports.append(alias.name)
 
-        # Find "from x import y"
         elif isinstance(node, ast.ImportFrom):
 
             if node.module:
-
                 imports.append(node.module)
 
     return classes, functions, imports
 
 
 # ---------------------------------------------------------
-# Analyze All Python Files
+# Analyze Python Code
 # ---------------------------------------------------------
 
 def analyze_python_code(directory):
-    """
-    Analyze all Python files in the repository.
-    """
+
+    python_files = []
 
     total_classes = 0
     total_functions = 0
+
     all_imports = set()
-
-    print("\nPython Code Analysis")
-    print("====================")
-
-    found_python_file = False
 
     for root, directories, files in os.walk(directory):
 
@@ -312,12 +228,7 @@ def analyze_python_code(directory):
             if not file.endswith(".py"):
                 continue
 
-            found_python_file = True
-
-            file_path = os.path.join(
-                root,
-                file
-            )
+            file_path = os.path.join(root, file)
 
             relative_path = os.path.relpath(
                 file_path,
@@ -334,60 +245,194 @@ def analyze_python_code(directory):
             for imported_module in imports:
                 all_imports.add(imported_module)
 
-            print(f"\n📄 {relative_path}")
+            python_files.append({
+                "file": relative_path,
+                "classes": classes,
+                "functions": functions,
+                "imports": imports
+            })
 
-            if classes:
-
-                print("  Classes:")
-
-                for class_name in classes:
-                    print(f"    - {class_name}")
-
-            if functions:
-
-                print("  Functions:")
-
-                for function_name in functions:
-                    print(f"    - {function_name}")
-
-            if imports:
-
-                print("  Imports:")
-
-                for imported_module in imports:
-                    print(f"    - {imported_module}")
-
-            if not classes and not functions and not imports:
-
-                print("  No classes, functions or imports found.")
-
-    if not found_python_file:
-
-        print("No Python files found.")
-
-        return
-
-    print("\nPython Code Summary")
-    print("-------------------")
-
-    print("Total Classes:", total_classes)
-    print("Total Functions:", total_functions)
-
-    print("\nAll Imported Modules")
-    print("--------------------")
-
-    for imported_module in sorted(all_imports):
-
-        print("-", imported_module)
+    return {
+        "total_classes": total_classes,
+        "total_functions": total_functions,
+        "imports": sorted(all_imports),
+        "files": python_files
+    }
 
 
 # ---------------------------------------------------------
-# Main Program
+# Read README
+# ---------------------------------------------------------
+
+def read_readme(directory):
+
+    possible_readmes = [
+        "README.md",
+        "README.txt"
+    ]
+
+    for readme in possible_readmes:
+
+        path = os.path.join(
+            directory,
+            readme
+        )
+
+        if os.path.exists(path):
+
+            try:
+
+                with open(
+                    path,
+                    "r",
+                    encoding="utf-8"
+                ) as file:
+
+                    content = file.read()
+
+                # Limit size so JSON does not become huge
+                return content[:10000]
+
+            except (UnicodeDecodeError, OSError):
+
+                return ""
+
+    return ""
+
+
+# ---------------------------------------------------------
+# Read Requirements
+# ---------------------------------------------------------
+
+def read_requirements(directory):
+
+    path = os.path.join(
+        directory,
+        "requirements.txt"
+    )
+
+    if not os.path.exists(path):
+        return []
+
+    dependencies = []
+
+    try:
+
+        with open(
+            path,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            for line in file:
+
+                line = line.strip()
+
+                if line and not line.startswith("#"):
+
+                    dependencies.append(line)
+
+    except (UnicodeDecodeError, OSError):
+
+        pass
+
+    return dependencies
+
+
+# ---------------------------------------------------------
+# Generate Project Information
+# ---------------------------------------------------------
+
+def generate_project_info(directory):
+
+    print("\nAnalyzing repository...")
+
+    file_count, directory_count, languages = (
+        analyze_repository(directory)
+    )
+
+    important_files = find_important_files(
+        directory
+    )
+
+    file_tree = build_file_tree(
+        directory
+    )
+
+    python_analysis = analyze_python_code(
+        directory
+    )
+
+    readme = read_readme(
+        directory
+    )
+
+    requirements = read_requirements(
+        directory
+    )
+
+    project_name = os.path.basename(
+        os.path.abspath(directory)
+    )
+
+    project_info = {
+
+        "project_name": project_name,
+
+        "statistics": {
+            "files": file_count,
+            "directories": directory_count
+        },
+
+        "languages": languages,
+
+        "important_files": important_files,
+
+        "python_analysis": python_analysis,
+
+        "dependencies": {
+            "python_requirements": requirements
+        },
+
+        "readme": readme,
+
+        "file_tree": file_tree
+    }
+
+    return project_info
+
+
+# ---------------------------------------------------------
+# Save JSON
+# ---------------------------------------------------------
+
+def save_project_info(project_info, output_path):
+
+    with open(
+        output_path,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            project_info,
+            file,
+            indent=4
+        )
+
+    print("\nProject information saved!")
+    print("Output:", output_path)
+
+
+# ---------------------------------------------------------
+# Main
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
 
     repository_path = "data/cloned_repo"
+
+    output_path = "data/project_info.json"
 
     if not os.path.exists(repository_path):
 
@@ -399,25 +444,41 @@ if __name__ == "__main__":
 
     else:
 
-        # 1. Basic repository analysis
-        analyze_repository(
+        project_info = generate_project_info(
             repository_path
         )
 
-        # 2. Important files
-        find_important_files(
-            repository_path
+        save_project_info(
+            project_info,
+            output_path
         )
 
-        # 3. Project structure
-        print("\nProject Structure")
-        print("=================")
-
-        print_file_tree(
-            repository_path
+        print("\nAnalysis Complete!")
+        print(
+            "Files:",
+            project_info["statistics"]["files"]
         )
 
-        # 4. Python code analysis
-        analyze_python_code(
-            repository_path
+        print(
+            "Directories:",
+            project_info["statistics"]["directories"]
+        )
+
+        print(
+            "Classes:",
+            project_info["python_analysis"]["total_classes"]
+        )
+
+        print(
+            "Functions:",
+            project_info["python_analysis"]["total_functions"]
+        )
+
+        print(
+            "Dependencies:",
+            len(
+                project_info["dependencies"][
+                    "python_requirements"
+                ]
+            )
         )
