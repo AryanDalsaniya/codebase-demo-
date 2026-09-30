@@ -1,7 +1,6 @@
 import os
 
 
-# File extensions and their programming languages
 LANGUAGE_EXTENSIONS = {
     ".py": "Python",
     ".cpp": "C++",
@@ -24,9 +23,7 @@ LANGUAGE_EXTENSIONS = {
 
 
 def analyze_repository(directory):
-    """
-    Analyze the basic structure of a repository.
-    """
+    """Analyze the basic structure of a repository."""
 
     file_count = 0
     directory_count = 0
@@ -37,18 +34,14 @@ def analyze_repository(directory):
 
     for root, directories, files in os.walk(directory):
 
-        # Count directories
         directory_count += len(directories)
 
-        # Analyze files
         for file in files:
 
             file_count += 1
 
-            # Get file extension
             extension = os.path.splitext(file)[1].lower()
 
-            # Check if extension belongs to a known language
             if extension in LANGUAGE_EXTENSIONS:
 
                 language = LANGUAGE_EXTENSIONS[extension]
@@ -66,12 +59,51 @@ def analyze_repository(directory):
     print("----------------------")
 
     if language_count:
-
         for language, count in sorted(language_count.items()):
             print(f"{language}: {count} files")
-
     else:
         print("No recognized programming languages found.")
+
+
+def print_file_tree(directory, prefix=""):
+    """
+    Print the repository as a tree structure.
+    """
+
+    try:
+        entries = sorted(os.listdir(directory))
+    except PermissionError:
+        return
+
+    # Ignore Git's internal folder
+    entries = [
+        entry for entry in entries
+        if entry != ".git"
+    ]
+
+    for index, entry in enumerate(entries):
+
+        path = os.path.join(directory, entry)
+
+        is_last = index == len(entries) - 1
+
+        if is_last:
+            connector = "└── "
+            new_prefix = prefix + "    "
+        else:
+            connector = "├── "
+            new_prefix = prefix + "│   "
+
+        if os.path.isdir(path):
+            print(prefix + connector + "📁 " + entry)
+
+            print_file_tree(
+                path,
+                new_prefix
+            )
+
+        else:
+            print(prefix + connector + "📄 " + entry)
 
 
 if __name__ == "__main__":
@@ -86,3 +118,8 @@ if __name__ == "__main__":
     else:
 
         analyze_repository(repository_path)
+
+        print("\nProject Structure")
+        print("=================")
+
+        print_file_tree(repository_path)
