@@ -1,7 +1,11 @@
 import os
+import ast
 
 
-# File extensions and their programming languages
+# ---------------------------------------------------------
+# Language Detection
+# ---------------------------------------------------------
+
 LANGUAGE_EXTENSIONS = {
     ".py": "Python",
     ".cpp": "C++",
@@ -23,7 +27,10 @@ LANGUAGE_EXTENSIONS = {
 }
 
 
-# Important files that help developers understand a project
+# ---------------------------------------------------------
+# Important Project Files
+# ---------------------------------------------------------
+
 IMPORTANT_FILES = {
     "README.md": "Project documentation",
     "README.txt": "Project documentation",
@@ -42,6 +49,10 @@ IMPORTANT_FILES = {
 }
 
 
+# ---------------------------------------------------------
+# Basic Repository Analysis
+# ---------------------------------------------------------
+
 def analyze_repository(directory):
     """
     Analyze the basic structure of a repository.
@@ -56,22 +67,18 @@ def analyze_repository(directory):
 
     for root, directories, files in os.walk(directory):
 
-        # Ignore Git's internal directory
+        # Ignore Git internal directory
         if ".git" in directories:
             directories.remove(".git")
 
-        # Count directories
         directory_count += len(directories)
 
-        # Analyze files
         for file in files:
 
             file_count += 1
 
-            # Get file extension
             extension = os.path.splitext(file)[1].lower()
 
-            # Check if extension belongs to a known language
             if extension in LANGUAGE_EXTENSIONS:
 
                 language = LANGUAGE_EXTENSIONS[extension]
@@ -81,7 +88,11 @@ def analyze_repository(directory):
 
                 language_count[language] += 1
 
-    print("Repository:", os.path.basename(os.path.abspath(directory)))
+    print(
+        "Repository:",
+        os.path.basename(os.path.abspath(directory))
+    )
+
     print("Files:", file_count)
     print("Directories:", directory_count)
 
@@ -98,6 +109,10 @@ def analyze_repository(directory):
         print("No recognized programming languages found.")
 
 
+# ---------------------------------------------------------
+# Project File Tree
+# ---------------------------------------------------------
+
 def print_file_tree(directory, prefix=""):
     """
     Print the repository as a tree structure.
@@ -108,7 +123,6 @@ def print_file_tree(directory, prefix=""):
     except PermissionError:
         return
 
-    # Ignore Git's internal folder
     entries = [
         entry
         for entry in entries
@@ -122,9 +136,12 @@ def print_file_tree(directory, prefix=""):
         is_last = index == len(entries) - 1
 
         if is_last:
+
             connector = "└── "
             new_prefix = prefix + "    "
+
         else:
+
             connector = "├── "
             new_prefix = prefix + "│   "
 
@@ -146,6 +163,10 @@ def print_file_tree(directory, prefix=""):
             )
 
 
+# ---------------------------------------------------------
+# Important Files
+# ---------------------------------------------------------
+
 def find_important_files(directory):
     """
     Find important files that help developers
@@ -156,7 +177,6 @@ def find_important_files(directory):
 
     for root, directories, files in os.walk(directory):
 
-        # Ignore Git's internal directory
         if ".git" in directories:
             directories.remove(".git")
 
@@ -198,36 +218,206 @@ def find_important_files(directory):
         )
 
 
+# ---------------------------------------------------------
+# Python Source Code Analysis
+# ---------------------------------------------------------
+
+def analyze_python_file(file_path):
+    """
+    Analyze one Python file using AST.
+
+    Returns:
+        classes
+        functions
+        imports
+    """
+
+    classes = []
+    functions = []
+    imports = []
+
+    try:
+
+        with open(
+            file_path,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            source_code = file.read()
+
+        tree = ast.parse(source_code)
+
+    except (SyntaxError, UnicodeDecodeError, OSError):
+
+        return classes, functions, imports
+
+    for node in ast.walk(tree):
+
+        # Find classes
+        if isinstance(node, ast.ClassDef):
+
+            classes.append(node.name)
+
+        # Find functions
+        elif isinstance(
+            node,
+            (ast.FunctionDef, ast.AsyncFunctionDef)
+        ):
+
+            functions.append(node.name)
+
+        # Find imports
+        elif isinstance(node, ast.Import):
+
+            for alias in node.names:
+
+                imports.append(alias.name)
+
+        # Find "from x import y"
+        elif isinstance(node, ast.ImportFrom):
+
+            if node.module:
+
+                imports.append(node.module)
+
+    return classes, functions, imports
+
+
+# ---------------------------------------------------------
+# Analyze All Python Files
+# ---------------------------------------------------------
+
+def analyze_python_code(directory):
+    """
+    Analyze all Python files in the repository.
+    """
+
+    total_classes = 0
+    total_functions = 0
+    all_imports = set()
+
+    print("\nPython Code Analysis")
+    print("====================")
+
+    found_python_file = False
+
+    for root, directories, files in os.walk(directory):
+
+        if ".git" in directories:
+            directories.remove(".git")
+
+        for file in files:
+
+            if not file.endswith(".py"):
+                continue
+
+            found_python_file = True
+
+            file_path = os.path.join(
+                root,
+                file
+            )
+
+            relative_path = os.path.relpath(
+                file_path,
+                directory
+            )
+
+            classes, functions, imports = (
+                analyze_python_file(file_path)
+            )
+
+            total_classes += len(classes)
+            total_functions += len(functions)
+
+            for imported_module in imports:
+                all_imports.add(imported_module)
+
+            print(f"\n📄 {relative_path}")
+
+            if classes:
+
+                print("  Classes:")
+
+                for class_name in classes:
+                    print(f"    - {class_name}")
+
+            if functions:
+
+                print("  Functions:")
+
+                for function_name in functions:
+                    print(f"    - {function_name}")
+
+            if imports:
+
+                print("  Imports:")
+
+                for imported_module in imports:
+                    print(f"    - {imported_module}")
+
+            if not classes and not functions and not imports:
+
+                print("  No classes, functions or imports found.")
+
+    if not found_python_file:
+
+        print("No Python files found.")
+
+        return
+
+    print("\nPython Code Summary")
+    print("-------------------")
+
+    print("Total Classes:", total_classes)
+    print("Total Functions:", total_functions)
+
+    print("\nAll Imported Modules")
+    print("--------------------")
+
+    for imported_module in sorted(all_imports):
+
+        print("-", imported_module)
+
+
+# ---------------------------------------------------------
+# Main Program
+# ---------------------------------------------------------
+
 if __name__ == "__main__":
 
-    # Location where repository_loader.py
-    # downloaded the repository
     repository_path = "data/cloned_repo"
 
-    # Check whether repository exists
     if not os.path.exists(repository_path):
 
         print("Repository not found.")
+
         print(
             "Run repository_loader.py first."
         )
 
     else:
 
-        # 1. Analyze repository
+        # 1. Basic repository analysis
         analyze_repository(
             repository_path
         )
 
-        # 2. Find important files
+        # 2. Important files
         find_important_files(
             repository_path
         )
 
-        # 3. Print project structure
+        # 3. Project structure
         print("\nProject Structure")
         print("=================")
 
         print_file_tree(
+            repository_path
+        )
+
+        # 4. Python code analysis
+        analyze_python_code(
             repository_path
         )
