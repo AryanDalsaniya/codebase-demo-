@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: codebase-onboarding-companion
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini

@@ -1,33 +1,35 @@
-
 # Codebase Onboarding Companion
 
 Explore a public GitHub repository without opening every file by hand. The
-companion clones and indexes the repository, shows an overview and file tree,
-previews text files, and can use a local Ollama model to create an onboarding
-guide and answer questions about the code.
+companion clones and analyzes repositories, displays an overview and file tree,
+previews text files, and uses the OpenAI API for an onboarding guide and code
+questions.
 
 ## Features
 
-- Clone a GitHub repository or a link copied from a repository/branch page.
+- Clone public GitHub repositories, including links copied from branch pages.
 - Shallow-clone the default branch to reduce download time and disk usage.
 - Summarize languages, files, directories, Python symbols, and common project
   files.
-- Browse and preview repository files in the web interface.
-- Generate an onboarding guide and ask questions using local Llama 3.2.
+- Browse the repository and preview text files.
+- Generate an onboarding guide and ask codebase questions with OpenAI.
+- Keep each browser session's cloned repository and analysis separate.
 
 ## Requirements
 
 - Python 3.10 or later
 - Git installed and available on `PATH`
-- Ollama and the `llama3.2` model for AI guide and Q&A features
+- An OpenAI API key for the AI guide and Q&A features
 
-Repository analysis and browsing work without Ollama. The AI guide and Q&A
-features require Ollama to be running locally.
+Repository analysis and browsing work without an OpenAI key. The key is used by
+the backend only; never put it in frontend code, commit it, or share it in chat.
+The default model is `gpt-4o-mini`; set `OPENAI_MODEL` to use another model
+available to your OpenAI account.
 
-## Run locally
+## Run locally on Windows
 
 From the project root, create and activate a virtual environment, then install
-the pinned Python packages:
+the dependencies:
 
 ```powershell
 python -m venv .venv
@@ -35,31 +37,47 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-Install Ollama from [ollama.com](https://ollama.com/) if needed, then download
-the model:
+In the same terminal, set your API key and start the app:
 
 ```powershell
-ollama pull llama3.2
-```
-
-Start the API in one terminal:
-
-```powershell
+$env:OPENAI_API_KEY = "your-openai-api-key"
+$env:APP_PASSWORD = ""
 python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Start the frontend in a second terminal:
+Open <http://127.0.0.1:8000>. The frontend is served by FastAPI from the same
+origin. The API documentation is at <http://127.0.0.1:8000/docs>.
 
-```powershell
-python -m http.server 5500 --directory frontend
-```
+To use the separate frontend development server instead, run
+`python -m http.server 5500 --directory frontend` and open
+<http://127.0.0.1:5500>.
 
-Open <http://127.0.0.1:5500> in a browser. Paste a **public** GitHub repository
-URL and choose **Analyze repository**. Links such as
-`https://github.com/owner/repository/tree/main` are accepted and resolved to the
-repository itself. Private repositories are not supported.
+## Deploy on Render
 
-The API documentation is available at <http://127.0.0.1:8000/docs>.
+1. Push this repository to GitHub.
+2. Sign in at [Render](https://render.com/), choose **New** → **Blueprint**,
+   and connect this repository. Render reads [render.yaml](./render.yaml).
+3. Set `OPENAI_API_KEY` in the service's environment settings to your key. Set
+   `APP_PASSWORD` to a strong, private password before sharing the site. Keep
+   both values as Render secrets; do not put them in this repository.
+4. Deploy. Render installs `requirements.txt`, starts the FastAPI application,
+   and serves both the frontend and API from the same URL.
+5. Open the `onrender.com` URL from the service page, enter the app password
+   when prompted, and analyze a public GitHub repository.
+
+The API key never reaches the browser. The optional app password protects the
+public site from unauthorized use of your OpenAI account; do not leave it blank
+on a publicly shared deployment. OpenAI API usage may incur charges according
+to your OpenAI account's billing.
+
+### Hosting limitations
+
+Repository clones and per-browser-session analysis are kept under `data/`.
+Render's default filesystem is temporary: deployments, restarts, or instance
+replacement can clear this data, so users may need to analyze a repository
+again. This is a single-instance demo deployment, not a durable multi-instance
+service. Add persistent storage and coordinated session storage before scaling
+to multiple instances.
 
 ## Run tests
 
@@ -69,10 +87,9 @@ python -m unittest discover -s tests -v
 
 ## Notes
 
-- Repository contents are stored locally under `data/cloned_repo/`; generated
-  analysis is written to `data/project_info.json`. Both are git-ignored.
-- Only the default branch is cloned, and the clone is shallow.
-- Files and directories commonly generated by tools (for example `node_modules`,
-  virtual environments, build outputs, and `.git`) are omitted from analysis.
-- No GitHub token or remote AI API key is used. The LLM requests go to the local
-  Ollama service.
+- Only public GitHub repositories are supported; only the default branch is
+  cloned.
+- Common generated folders such as `node_modules`, virtual environments, build
+  outputs, and `.git` are skipped during analysis.
+- `OPENAI_API_KEY` and `APP_PASSWORD` are read from server environment
+  variables. Do not commit actual secret values.

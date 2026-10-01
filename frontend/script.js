@@ -24,14 +24,55 @@ code_search.py
    ↓
 Relevant repository code
    ↓
-Llama 3.2
+OpenAI
    ↓
 Answer
 =========================================================
 */
 
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE =
+    window.location.protocol === "file:" ||
+    window.location.port === "5500"
+        ? "http://127.0.0.1:8000"
+        : "";
+
+let browserSessionId;
+
+
+function getBrowserSessionId() {
+
+    if (browserSessionId) {
+        return browserSessionId;
+    }
+
+    try {
+        browserSessionId = sessionStorage.getItem("codebase-companion-session");
+    }
+    catch {
+        browserSessionId = null;
+    }
+
+    if (!browserSessionId || !/^[0-9a-f]{32}$/.test(browserSessionId)) {
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        browserSessionId = Array.from(
+            bytes,
+            byte => byte.toString(16).padStart(2, "0")
+        ).join("");
+
+        try {
+            sessionStorage.setItem(
+                "codebase-companion-session",
+                browserSessionId
+            );
+        }
+        catch {
+            // Keep the id for this page lifetime if browser storage is unavailable.
+        }
+    }
+
+    return browserSessionId;
+}
 
 
 /* ========================================================
@@ -141,23 +182,87 @@ async function apiRequest(
 ) {
 
     let response;
+    const headers = new Headers(options.headers || {});
+    headers.set("X-Session-ID", getBrowserSessionId());
+
+    try {
+        const cachedPassword =
+            sessionStorage.getItem("codebase-companion-password");
+
+        if (cachedPassword) {
+            headers.set("X-App-Password", cachedPassword);
+        }
+    }
+    catch {
+        // Continue without a cached password when browser storage is unavailable.
+    }
 
     try {
         response = await fetch(
             API_BASE + endpoint,
-            options
+            {
+                ...options,
+                headers
+            }
         );
     }
     catch (error) {
         if (error instanceof TypeError) {
             throw new Error(
-                "Could not reach the API. Start the backend at http://127.0.0.1:8000 and try again."
+                API_BASE
+                    ? "Could not reach the API. Start the backend at http://127.0.0.1:8000 and try again."
+                    : "Could not reach the app. Check your connection and try again."
             );
         }
 
         throw error;
     }
 
+    if (response.status === 401) {
+        const password = window.prompt(
+            "Enter the app access password set by the site owner:"
+        );
+
+        if (!password) {
+            throw new Error("An app access password is required.");
+        }
+
+        headers.set("X-App-Password", password);
+
+        try {
+            response = await fetch(
+                API_BASE + endpoint,
+                {
+                    ...options,
+                    headers
+                }
+            );
+        }
+        catch {
+            throw new Error("Could not reach the app. Please try again.");
+        }
+
+        if (response.status === 401) {
+            try {
+                sessionStorage.removeItem("codebase-companion-password");
+            }
+            catch {
+                // Ignore unavailable browser storage.
+            }
+
+            throw new Error("The app access password was incorrect.");
+        }
+
+        try {
+            sessionStorage.setItem(
+                "codebase-companion-password",
+                password
+            );
+        }
+        catch {
+            // Password remains available for this request if storage is unavailable.
+        }
+    }
 
     let data;
 
