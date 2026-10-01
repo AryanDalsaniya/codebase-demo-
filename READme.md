@@ -12,7 +12,8 @@ questions.
 - Summarize languages, files, directories, Python symbols, and common project
   files.
 - Browse the repository and preview text files.
-- Generate an onboarding guide and ask codebase questions with OpenAI.
+- Generate an AI onboarding guide and ask codebase questions with answers linked
+  to relevant source files.
 - Keep each browser session's cloned repository and analysis separate.
 
 ## Requirements
@@ -57,13 +58,34 @@ To use the separate frontend development server instead, run
 1. Push this repository to GitHub.
 2. Sign in at [Render](https://render.com/), choose **New** → **Blueprint**,
    and connect this repository. Render reads [render.yaml](./render.yaml).
-3. Set `OPENAI_API_KEY` in the service's environment settings to your key. Set
-   `APP_PASSWORD` to a strong, private password before sharing the site. Keep
-   both values as Render secrets; do not put them in this repository.
+3. In the service's **Environment** settings, set `OPENAI_API_KEY` to your
+   OpenAI API key and `APP_PASSWORD` to a strong, private access password. Keep
+   both values as Render secrets; never put them in this repository. The
+   `OPENAI_MODEL` setting defaults to `gpt-4o-mini` and can be changed if needed.
 4. Deploy. Render installs `requirements.txt`, starts the FastAPI application,
-   and serves both the frontend and API from the same URL.
-5. Open the `onrender.com` URL from the service page, enter the app password
-   when prompted, and analyze a public GitHub repository.
+   and serves the frontend and API from the same URL. Wait for the service to
+   finish deploying and report **Live**.
+
+### Access and use the deployed site
+
+1. In the Render dashboard, open the web service and click its `onrender.com`
+    URL. This is the public website address to share with users.
+2. Paste a public GitHub repository URL into **Bring a repository** and select
+    **Analyze repository**. The first protected request prompts for the
+    `APP_PASSWORD` you set in Render. Enter it; the browser remembers it for the
+    current tab session. Share this password only with people you want to use
+    the site.
+3. Review the repository overview, then use **File Explorer** to browse the
+  tree and preview files.
+4. Select **Generate guide** for an AI-written onboarding guide, or ask a
+  question in **Codebase Q&A**. Answers include relevant source files.
+
+Repository analysis and file browsing do not require an OpenAI key, but the AI
+guide and Q&A do. If those actions report that OpenAI is not configured, check
+that `OPENAI_API_KEY` is set in the Render service's environment settings and
+redeploy. If you change either secret, redeploy the service for the change to
+take effect. A free Render service may take a little while to respond after a
+period of inactivity.
 
 The API key never reaches the browser. The optional app password protects the
 public site from unauthorized use of your OpenAI account; do not leave it blank
