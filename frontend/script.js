@@ -140,10 +140,23 @@ async function apiRequest(
     options = {}
 ) {
 
-    const response = await fetch(
-        API_BASE + endpoint,
-        options
-    );
+    let response;
+
+    try {
+        response = await fetch(
+            API_BASE + endpoint,
+            options
+        );
+    }
+    catch (error) {
+        if (error instanceof TypeError) {
+            throw new Error(
+                "Could not reach the API. Start the backend at http://127.0.0.1:8000 and try again."
+            );
+        }
+
+        throw error;
+    }
 
 
     let data;
@@ -171,6 +184,13 @@ async function apiRequest(
             `Request failed with status ${response.status}.`
         );
 
+    }
+
+    if (data.success === false) {
+        throw new Error(
+            data.message ||
+            "The backend could not complete this request."
+        );
     }
 
 

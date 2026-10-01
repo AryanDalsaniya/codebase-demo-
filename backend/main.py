@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import os
 import json
+import logging
 
 from analyzer.repository_loader import clone_repository
 from analyzer.repository_analyzer import generate_project_info
@@ -18,6 +19,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIRECTORY = os.path.join(PROJECT_ROOT, "data")
 REPOSITORY_PATH = os.path.join(DATA_DIRECTORY, "cloned_repo")
 PROJECT_INFO_PATH = os.path.join(DATA_DIRECTORY, "project_info.json")
+logger = logging.getLogger(__name__)
 
 
 # =========================================================
@@ -49,7 +51,7 @@ app.add_middleware(
 # =========================================================
 
 class RepositoryRequest(BaseModel):
-    repo_url: str
+    repo_url: str = Field(min_length=1, max_length=2048)
 
 
 class QuestionRequest(BaseModel):
@@ -75,51 +77,55 @@ def home():
 
 @app.post("/analyze")
 def analyze_repository(request: RepositoryRequest):
+    repo_url = request.repo_url.strip()
+    if not repo_url:
+        raise HTTPException(
+            status_code=422,
+            detail="Please enter a GitHub repository URL."
+        )
 
+    logger.info("Cloning repository from %s", repo_url)
     try:
-
-        print("Cloning repository...")
-
         clone_success = clone_repository(
-            request.repo_url,
+            repo_url,
             REPOSITORY_PATH,
             raise_errors=True
         )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Repository clone failed")
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Could not clone that repository. Check that the URL is correct, "
+                "the repository is public, and GitHub is reachable."
+            )
+        ) from error
 
-        if not clone_success:
-
-            return {
-                "success": False,
-                "message": "Repository could not be cloned."
-            }
-
-        print("Analyzing repository...")
-
-        project_info = generate_project_info(
-            REPOSITORY_PATH
+    if not clone_success:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not clone that repository. Check that it is public and reachable."
         )
 
-        save_project_info(
-            project_info,
-            PROJECT_INFO_PATH
-        )
+    try:
+        logger.info("Analyzing repository at %s", REPOSITORY_PATH)
+        project_info = generate_project_info(REPOSITORY_PATH)
+        os.makedirs(DATA_DIRECTORY, exist_ok=True)
+        save_project_info(project_info, PROJECT_INFO_PATH)
+    except Exception as error:
+        logger.exception("Repository analysis failed")
+        raise HTTPException(
+            status_code=500,
+            detail="The repository was cloned, but its files could not be analyzed."
+        ) from error
 
-        print("Repository analysis completed.")
-
-        return {
-            "success": True,
-            "message": "Repository analyzed successfully."
-        }
-
-    except Exception as e:
-
-        print("ERROR:", repr(e))
-
-        return {
-            "success": False,
-            "message": "An error occurred while analyzing the repository.",
-            "error": str(e)
-        }
+    logger.info("Repository analysis completed")
+    return {
+        "success": True,
+        "message": "Repository analyzed successfully."
+    }
 
 
 # =========================================================
@@ -141,7 +147,7 @@ def get_summary():
         with open(
             PROJECT_INFO_PATH,
             "r",
-            encoding="utf-8"
+            encoding="utf-8-sig"
         ) as file:
 
             project_info = json.load(file)
@@ -154,7 +160,8 @@ def get_summary():
             "important_files": project_info["important_files"],
             "classes": project_info["python_analysis"]["total_classes"],
             "functions": project_info["python_analysis"]["total_functions"],
-            "dependencies": project_info["dependencies"]
+            "dependencies": project_info["dependencies"],
+            "readme": project_info.get("readme", "")
         }
 
     except Exception as e:
@@ -183,7 +190,7 @@ def get_file_tree():
         with open(
             PROJECT_INFO_PATH,
             "r",
-            encoding="utf-8"
+            encoding="utf-8-sig"
         ) as file:
 
             project_info = json.load(file)
@@ -296,7 +303,7 @@ def onboarding_guide():
         with open(
             PROJECT_INFO_PATH,
             "r",
-            encoding="utf-8"
+            encoding="utf-8-sig"
         ) as file:
 
             project_info = json.load(file)

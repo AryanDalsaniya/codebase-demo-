@@ -1,10 +1,68 @@
 import os
+import re
 import shutil
 import stat
 import tempfile
 import time
+from urllib.parse import unquote, urlsplit
 
 from git import Repo
+
+
+# =========================================================
+# Normalize GitHub Repository URLs
+# =========================================================
+
+def normalize_repository_url(repo_url):
+    """Return a clone URL for a public GitHub repository URL."""
+
+    value = repo_url.strip()
+
+    if value.startswith("git@github.com:"):
+        value = "https://github.com/" + value[len("git@github.com:"):]
+    elif value.startswith("github.com/"):
+        value = "https://" + value
+
+    parsed = urlsplit(value)
+
+    if (
+        parsed.scheme.lower() != "https"
+        or parsed.hostname is None
+        or parsed.hostname.lower() not in {"github.com", "www.github.com"}
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError(
+            "Enter a public GitHub repository URL, such as "
+            "https://github.com/owner/repository."
+        )
+
+    path_parts = [
+        unquote(part)
+        for part in parsed.path.strip("/").split("/")
+        if part
+    ]
+
+    if len(path_parts) < 2:
+        raise ValueError(
+            "The GitHub URL must include both an owner and a repository name."
+        )
+
+    owner, repository = path_parts[:2]
+
+    if repository.lower().endswith(".git"):
+        repository = repository[:-4]
+
+    valid_name_pattern = re.compile(r"[A-Za-z0-9_.-]+")
+    if (
+        owner in {".", ".."}
+        or repository in {".", ".."}
+        or not valid_name_pattern.fullmatch(owner)
+        or not valid_name_pattern.fullmatch(repository)
+    ):
+        raise ValueError("The GitHub URL contains an invalid owner or repository name.")
+
+    return f"https://github.com/{owner}/{repository}.git"
 
 
 # =========================================================
@@ -85,6 +143,7 @@ def clone_repository(repo_url, destination, *, raise_errors=False):
     temporary_directory = None
 
     try:
+        repo_url = normalize_repository_url(repo_url)
 
         os.makedirs(parent_directory, exist_ok=True)
         temporary_directory = tempfile.mkdtemp(
@@ -96,7 +155,8 @@ def clone_repository(repo_url, destination, *, raise_errors=False):
 
         Repo.clone_from(
             repo_url,
-            temporary_directory
+            temporary_directory,
+            multi_options=["--depth=1", "--single-branch"]
         )
 
         if os.path.exists(destination):

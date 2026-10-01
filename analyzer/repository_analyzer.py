@@ -45,6 +45,23 @@ IMPORTANT_FILES = {
     ".env.example": "Example environment configuration",
 }
 
+IGNORED_DIRECTORIES = {
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    ".pytest_cache",
+    ".tox",
+    "build",
+    "dist",
+    ".next",
+    "target",
+    ".idea",
+    ".vscode",
+}
+
 
 # ---------------------------------------------------------
 # Basic Repository Analysis
@@ -57,9 +74,10 @@ def analyze_repository(directory):
     language_count = {}
 
     for root, directories, files in os.walk(directory):
-
-        if ".git" in directories:
-            directories.remove(".git")
+        directories[:] = [
+            name for name in directories
+            if name not in IGNORED_DIRECTORIES
+        ]
 
         directory_count += len(directories)
 
@@ -91,19 +109,19 @@ def build_file_tree(directory):
 
     try:
         entries = sorted(os.listdir(directory))
-    except PermissionError:
+    except OSError:
         return tree
 
     entries = [
         entry for entry in entries
-        if entry != ".git"
+        if entry not in IGNORED_DIRECTORIES
     ]
 
     for entry in entries:
 
         path = os.path.join(directory, entry)
 
-        if os.path.isdir(path):
+        if os.path.isdir(path) and not os.path.islink(path):
 
             tree.append({
                 "name": entry,
@@ -130,9 +148,10 @@ def find_important_files(directory):
     found_files = []
 
     for root, directories, files in os.walk(directory):
-
-        if ".git" in directories:
-            directories.remove(".git")
+        directories[:] = [
+            name for name in directories
+            if name not in IGNORED_DIRECTORIES
+        ]
 
         for file in files:
 
@@ -219,9 +238,10 @@ def analyze_python_code(directory):
     all_imports = set()
 
     for root, directories, files in os.walk(directory):
-
-        if ".git" in directories:
-            directories.remove(".git")
+        directories[:] = [
+            name for name in directories
+            if name not in IGNORED_DIRECTORIES
+        ]
 
         for file in files:
 
@@ -285,7 +305,8 @@ def read_readme(directory):
                 with open(
                     path,
                     "r",
-                    encoding="utf-8"
+                    encoding="utf-8-sig",
+                    errors="replace"
                 ) as file:
 
                     content = file.read()
@@ -321,7 +342,7 @@ def read_requirements(directory):
         with open(
             path,
             "r",
-            encoding="utf-8"
+            encoding="utf-8-sig"
         ) as file:
 
             for line in file:
