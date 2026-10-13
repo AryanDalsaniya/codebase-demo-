@@ -1,62 +1,73 @@
 import ollama
-
+import re
 
 # =========================================================
 # Generate Codebase Answer
 # =========================================================
 
-def generate_codebase_answer(question, search_results):
+def generate_codebase_answer(question, search_results, conversation_history=None):
+    """
+    FR-05: Codebase Question-Answering with conversational context retention.
+    FR-06 & US-SD-01: Source-Referenced Answers grounded in actual code.
+    If no source can be cited, states it cannot answer confidently.
+    """
 
     # -----------------------------------------------------
-    # No search results
+    # US-SD-01 & NFR-02 Safeguard: No search results found
     # -----------------------------------------------------
 
     if not search_results:
-
         return (
-            "I could not find relevant code in the repository "
-            "to answer this question."
+            "I cannot find sufficient evidence in the repository code to answer "
+            "this question with confidence. To ensure accuracy and avoid hallucinations, "
+            "unverified answers are not generated. Please check the Codebase Map or explore "
+            "relevant files directly in the File Explorer."
         )
 
     # -----------------------------------------------------
-    # Build repository context
+    # Build repository context (excluding sensitive files)
     # -----------------------------------------------------
 
     context_parts = []
 
     for result in search_results:
-
         file_name = result.get("file", "Unknown file")
         line_number = result.get("line", "Unknown")
         content = result.get("content", "")
 
         context_parts.append(
-            f"""
-File: {file_name}
-Line: {line_number}
-
-Relevant Code:
-{content}
-"""
+            f"File: {file_name}\nLine: {line_number}\nRelevant Code:\n{content}\n"
         )
 
     context = "\n".join(context_parts)
 
     # -----------------------------------------------------
+    # Format conversational history (FR-05)
+    # -----------------------------------------------------
+
+    history_str = ""
+    if conversation_history and isinstance(conversation_history, list):
+        recent_turns = conversation_history[-4:]
+        lines = []
+        for turn in recent_turns:
+            role = turn.get("role", "user").capitalize()
+            text = turn.get("content", "")
+            if text:
+                lines.append(f"{role}: {text}")
+        if lines:
+            history_str = "Prior Conversation Context:\n" + "\n".join(lines) + "\n\n"
+
+    # -----------------------------------------------------
     # Limit context size
     # -----------------------------------------------------
 
-    # Prevent extremely large prompts from being sent
-    # to the local Llama model.
     max_context_length = 12000
 
     if len(context) > max_context_length:
-
         context = context[:max_context_length]
-
         context += (
             "\n\n[Additional search results were omitted "
-            "because the context became too large.]"
+            "because the context reached the maximum safe window.]"
         )
 
     # -----------------------------------------------------
@@ -64,48 +75,25 @@ Relevant Code:
     # -----------------------------------------------------
 
     prompt = f"""
-You are an expert software engineer helping a new developer
-understand an unfamiliar codebase.
+You are an expert software engineer helping a junior developer understand an unfamiliar codebase.
 
-The developer asked:
-
+{history_str}Current Question:
 {question}
 
-The following information was retrieved directly from
-the repository:
-
 ---------------- REPOSITORY CONTEXT ----------------
-
 {context}
-
 ---------------- END REPOSITORY CONTEXT --------------
 
-Answer the developer's question using ONLY the repository
-information provided above.
+Answer the developer's question using ONLY the repository information provided above.
 
-Rules:
-
-1. Answer the question directly.
-2. Use simple, beginner-friendly language.
-3. Mention relevant file names.
-4. Mention line numbers when useful.
-5. Explain relevant classes, functions, variables,
-   or logic when they appear in the provided code.
-6. Do not invent code, files, classes, functions,
-   dependencies, or behavior.
-7. Do not assume functionality that is not shown.
-8. Clearly distinguish what can be determined from
-   the provided repository context.
-9. If the provided context is insufficient, say:
-   "The retrieved repository code is not sufficient
-   to determine this."
-10. Do not claim that you inspected files that were
-    not included in the repository context.
-11. Keep the answer focused on the developer's question.
-12. When possible, explain the answer step-by-step.
-
-Return a practical explanation for a developer who is
-new to this codebase.
+Requirements:
+1. Answer the question directly and concisely in plain, beginner-friendly language.
+2. Every explanation must cite its source using the exact format `[file_name:line]` (e.g., `[main.cpp:12]`).
+3. Explain relevant classes, functions, or logic when they appear in the provided code.
+4. Do not invent code, files, classes, functions, or behavior.
+5. If the provided context is insufficient, explicitly state:
+   "The retrieved repository code is not sufficient to determine this."
+6. Never show an ungrounded or fabricated answer.
 """
 
     # -----------------------------------------------------
@@ -113,7 +101,6 @@ new to this codebase.
     # -----------------------------------------------------
 
     try:
-
         response = ollama.chat(
             model="llama3.2",
             messages=[
@@ -124,34 +111,23 @@ new to this codebase.
             ]
         )
 
-        # -------------------------------------------------
-        # Extract response safely
-        # -------------------------------------------------
-
         if not response:
             return "Llama did not return an answer."
 
         message = response.get("message")
-
         if not message:
             return "Llama returned an unexpected response."
 
         answer = message.get("content")
-
         if not answer:
             return "Llama returned an empty answer."
 
         return answer.strip()
 
     except Exception as e:
-
-        print(
-            "Llama error:",
-            repr(e)
-        )
-
+        print("Llama error:", repr(e))
         return (
-            "Could not generate an answer using "
-            "Llama 3.2. Please make sure Ollama is "
-            "running and the llama3.2 model is available."
+            "Could not generate an answer using Llama 3.2. "
+            "Please ensure Ollama is running and the llama3.2 model is downloaded "
+            "(`ollama pull llama3.2`)."
         )

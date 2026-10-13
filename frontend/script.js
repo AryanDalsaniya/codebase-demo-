@@ -1,1762 +1,916 @@
 "use strict";
 
-
 /*
 =========================================================
-CODEBASE ONBOARDING COMPANION
+CODEBASE ONBOARDING COMPANION (PHASE 1)
 =========================================================
-
-Frontend
-   ↓
-FastAPI
-   ↓
-Repository Analyzer
-   ↓
-project_info.json
-
-Q&A:
-
-Frontend
-   ↓
-/ask
-   ↓
-code_search.py
-   ↓
-Relevant repository code
-   ↓
-Llama 3.2
-   ↓
-Answer
+Integrated client script supporting:
+- Core scanning & Codebase Map (FR-01, FR-03)
+- Technology Stack Detection (FR-02)
+- Knowledge Concentration (FR-15)
+- Code Evolution Timeline (FR-16)
+- Change Preview / Impact Awareness (FR-14)
+- Task-to-Code Guidance (FR-13)
+- Grounded Source-Referenced Q&A Chatbot (FR-05, FR-06)
+- Senior Review & Management Visibility (FR-17, FR-19)
 =========================================================
 */
 
-
 const API_BASE = "http://127.0.0.1:8000";
-
+let conversationHistory = [];
 
 /* ========================================================
-   DOM HELPER
+   DOM HELPERS
 ======================================================== */
 
 function getElement(id) {
-
     return document.getElementById(id);
-
 }
 
-
-/* ========================================================
-   SHOW / HIDE
-======================================================== */
-
 function show(element) {
-
     if (element) {
         element.classList.remove("hidden");
     }
-
 }
 
-
 function hide(element) {
-
     if (element) {
         element.classList.add("hidden");
     }
-
 }
-
-
-/* ========================================================
-   SET TEXT
-======================================================== */
 
 function setText(id, value) {
-
-    const element = getElement(id);
-
-    if (!element) {
-        return;
-    }
-
-    if (
-        value === undefined ||
-        value === null ||
-        value === ""
-    ) {
-
-        element.textContent = "—";
-
-    }
-    else {
-
-        element.textContent = String(value);
-
-    }
-
+    const el = getElement(id);
+    if (!el) return;
+    el.textContent = (value === undefined || value === null || value === "") ? "—" : String(value);
 }
-
-
-/* ========================================================
-   GENERAL ERROR
-======================================================== */
 
 function showError(message) {
-
     const error = getElement("error");
-
-    if (!error) {
-        return;
-    }
-
+    if (!error) return;
     error.textContent = message;
-
     show(error);
-
 }
-
 
 function clearError() {
-
     const error = getElement("error");
-
-    if (!error) {
-        return;
-    }
-
+    if (!error) return;
     error.textContent = "";
-
     hide(error);
-
 }
 
-
 /* ========================================================
-   API REQUEST
+   API REQUEST WRAPPER
 ======================================================== */
 
-async function apiRequest(
-    endpoint,
-    options = {}
-) {
-
+async function apiRequest(endpoint, options = {}) {
     let response;
-
     try {
-        response = await fetch(
-            API_BASE + endpoint,
-            options
-        );
-    }
-    catch (error) {
+        response = await fetch(API_BASE + endpoint, options);
+    } catch (error) {
         if (error instanceof TypeError) {
-            throw new Error(
-                "Could not reach the API. Start the backend at http://127.0.0.1:8000 and try again."
-            );
+            throw new Error("Could not reach API. Please ensure backend is running at http://127.0.0.1:8000");
         }
-
         throw error;
     }
 
-
     let data;
-
     try {
-
         data = await response.json();
-
+    } catch {
+        throw new Error(`Backend returned an invalid response (${response.status}).`);
     }
-    catch {
-
-        throw new Error(
-            `Backend returned an invalid response (${response.status}).`
-        );
-
-    }
-
 
     if (!response.ok) {
-
-        throw new Error(
-            data.detail ||
-            data.error ||
-            data.message ||
-            `Request failed with status ${response.status}.`
-        );
-
+        throw new Error(data.detail || data.error || data.message || `Request failed (${response.status}).`);
     }
 
     if (data.success === false) {
-        throw new Error(
-            data.message ||
-            "The backend could not complete this request."
-        );
+        throw new Error(data.message || "The backend could not complete this request.");
     }
 
-
     return data;
-
 }
 
-
 /* ========================================================
-   ANALYZE REPOSITORY
+   REPOSITORY ANALYSIS
 ======================================================== */
 
 async function analyzeRepository() {
+    const repoInput = getElement("repoUrl");
+    const analyzeButton = getElement("analyzeButton");
+    const loading = getElement("loading");
+    const result = getElement("result");
 
-    const repoInput =
-        getElement("repoUrl");
-
-    const analyzeButton =
-        getElement("analyzeButton");
-
-    const loading =
-        getElement("loading");
-
-    const result =
-        getElement("result");
-
-
-    const repoUrl =
-        repoInput
-            ? repoInput.value.trim()
-            : "";
-
-
+    const repoUrl = repoInput ? repoInput.value.trim() : "";
     if (!repoUrl) {
-
-        showError(
-            "Please enter a GitHub repository URL."
-        );
-
+        showError("Please enter a GitHub repository URL.");
         return;
-
     }
-
 
     clearError();
-
     hide(result);
-
     show(loading);
-
-
-    if (analyzeButton) {
-        analyzeButton.disabled = true;
-    }
-
-
-    console.log(
-        "Starting repository analysis..."
-    );
-
+    if (analyzeButton) analyzeButton.disabled = true;
 
     try {
+        // Step 1: Clone and analyze
+        await apiRequest("/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ repo_url: repoUrl })
+        });
 
-        /*
-        ==================================================
-        STEP 1
-        ANALYZE REPOSITORY
-        ==================================================
-        */
+        // Step 2: Fetch comprehensive summary
+        const summary = await apiRequest("/summary");
+        displaySummary(summary);
 
-        const analyzeData =
-            await apiRequest(
-                "/analyze",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        repo_url: repoUrl
-                    })
-                }
-            );
-
-
-        console.log(
-            "Analyze response:",
-            analyzeData
-        );
-
-
-        /*
-        ==================================================
-        STEP 2
-        GET SUMMARY
-        ==================================================
-        */
-
-        const summaryData =
-            await apiRequest(
-                "/summary"
-            );
-
-
-        console.log(
-            "Summary:",
-            summaryData
-        );
-
-
-        displaySummary(
-            summaryData
-        );
-
-
-        /*
-        ==================================================
-        STEP 3
-        FILE TREE
-        ==================================================
-        */
-
+        // Step 3: Fetch file tree
         await loadRepositoryFileTree();
 
-
-        /*
-        ==================================================
-        STEP 4
-        SHOW RESULTS
-        ==================================================
-        */
-
+        // Step 4: Show results
         show(result);
 
+        // Step 5: Load Senior & Manager views
+        await loadSeniorReviewStatus();
+        await loadManagementOverview();
 
-        /*
-        ==================================================
-        STEP 5
-        GENERATE AI GUIDE
-        ==================================================
-        */
-
-        await generateOnboardingGuide();
-
-
-        console.log(
-            "Repository analysis completed."
-        );
-
-    }
-    catch (error) {
-
-        console.error(
-            "Analysis error:",
-            error
-        );
-
-
-        showError(
-            error.message ||
-            "Could not analyze the repository."
-        );
-
-    }
-    finally {
-
+    } catch (error) {
+        console.error("Analysis error:", error);
+        showError(error.message || "Could not analyze the repository.");
+    } finally {
         hide(loading);
-
-
-        if (analyzeButton) {
-            analyzeButton.disabled = false;
-        }
-
+        if (analyzeButton) analyzeButton.disabled = false;
     }
-
 }
 
-
 /* ========================================================
-   DISPLAY SUMMARY
+   DISPLAY SUMMARY & CORE MODULES
 ======================================================== */
 
 function displaySummary(summary) {
+    if (!summary) return;
 
-    if (!summary) {
-        return;
+    // Project Name & Counts
+    setText("projectName", summary.project_name || "Unknown");
+    const stats = summary.statistics || {};
+    setText("fileCount", stats.files ?? 0);
+    setText("directoryCount", stats.directories ?? 0);
+
+    const languages = summary.languages || {};
+    setText("languageCount", Object.keys(languages).length);
+    setText("classCount", stats.total_classes ?? summary.classes ?? 0);
+    setText("functionCount", stats.total_functions ?? summary.functions ?? 0);
+
+    // Security Scan Status (FR-20)
+    const sec = summary.security_scan || {};
+    const secBadge = getElement("securityBadge");
+    if (secBadge) {
+        secBadge.textContent = sec.status || "🔒 Secrets Excluded from AI";
     }
 
-
-    /*
-    ==================================================
-    PROJECT
-    ==================================================
-    */
-
-    setText(
-        "projectName",
-        summary.project_name ||
-        "Unknown"
-    );
-
-
-    /*
-    ==================================================
-    STATISTICS
-    ==================================================
-    */
-
-    const statistics =
-        summary.statistics || {};
-
-
-    setText(
-        "fileCount",
-        statistics.files ?? 0
-    );
-
-
-    setText(
-        "directoryCount",
-        statistics.directories ?? 0
-    );
-
-
-    /*
-    ==================================================
-    LANGUAGES
-    ==================================================
-    */
-
-    const languages =
-        summary.languages || {};
-
-
-    const languageNames =
-        Object.keys(languages);
-
-
-    setText(
-        "languageCount",
-        languageNames.length
-    );
-
-
-    displayLanguages(
-        languages
-    );
-
-
-    /*
-    ==================================================
-    PYTHON ANALYSIS
-    ==================================================
-    */
-
-    const pythonAnalysis =
-        summary.python_analysis || {};
-
-
-    const classes =
-        pythonAnalysis.classes ||
-        summary.classes ||
-        [];
-
-
-    const functions =
-        pythonAnalysis.functions ||
-        summary.functions ||
-        [];
-
-
-    setText(
-        "classCount",
-        Array.isArray(classes)
-            ? classes.length
-            : classes
-    );
-
-
-    setText(
-        "functionCount",
-        Array.isArray(functions)
-            ? functions.length
-            : functions
-    );
-
-
-    /*
-    ==================================================
-    IMPORTANT FILES
-    ==================================================
-    */
-
-    displayImportantFiles(
-        summary.important_files || []
-    );
-
-
-    /*
-    ==================================================
-    DEPENDENCIES
-    ==================================================
-    */
-
-    displayDependencies(
-        summary.dependencies || {}
-    );
-
-
-    /*
-    ==================================================
-    DESCRIPTION
-    ==================================================
-    */
-
-    const description =
-        summary.description ||
-        summary.project_description ||
-        "";
-
-
-    const readme =
-        summary.readme ||
-        "";
-
-
-    const descriptionElement =
-        getElement(
-            "projectDescription"
-        );
-
-
-    if (!descriptionElement) {
-        return;
+    // Description
+    const descEl = getElement("projectDescription");
+    if (descEl) {
+        descEl.textContent = summary.readme
+            ? (summary.readme.length > 800 ? summary.readme.substring(0, 800) + "..." : summary.readme)
+            : "Repository analyzed successfully.";
     }
 
-
-    if (description) {
-
-        descriptionElement.textContent =
-            description;
-
-    }
-    else if (readme) {
-
-        descriptionElement.textContent =
-            readme.length > 1500
-                ? readme.substring(0, 1500) + "..."
-                : readme;
-
-    }
-    else {
-
-        descriptionElement.textContent =
-            "Repository analyzed successfully.";
-
+    // Pre-populate Change Preview file input with primary file if available
+    const importantFiles = summary.important_files || [];
+    if (importantFiles.length > 0) {
+        const impactInput = getElement("impactFileInput");
+        if (impactInput && !impactInput.value) {
+            impactInput.value = importantFiles[0].file || importantFiles[0];
+        }
     }
 
+    // Display sub-features
+    displayCodebaseMap(summary.codebase_map || {});
+    displayTechStack(summary.tech_stack || {});
+    displayKnowledgeConcentration(summary.knowledge_concentration || {});
+    displayCodeEvolutionTimeline(summary.code_evolution_timeline || {});
 }
 
-
 /* ========================================================
-   LANGUAGES
+   FR-03: DISPLAY INTERACTIVE CODEBASE MAP
 ======================================================== */
 
-function displayLanguages(languages) {
+function displayCodebaseMap(map) {
+    const entryList = getElement("entryPointsList");
+    const layersContainer = getElement("mapLayersContainer");
+    const connList = getElement("connectionsList");
 
-    const container =
-        getElement("languages");
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    const names =
-        Object.keys(
-            languages || {}
-        );
-
-
-    if (names.length === 0) {
-
-        container.innerHTML =
-            `
-            <span class="language-tag">
-                No language information available
-            </span>
-            `;
-
-        return;
-    }
-
-
-    names.forEach(language => {
-
-        const tag =
-            document.createElement(
-                "span"
-            );
-
-
-        tag.className =
-            "language-tag";
-
-
-        const value =
-            languages[language];
-
-
-        if (
-            typeof value === "number"
-        ) {
-
-            tag.textContent =
-                `${language} (${value})`;
-
+    if (entryList) {
+        entryList.innerHTML = "";
+        const entries = map.entry_points || [];
+        if (entries.length === 0) {
+            entryList.innerHTML = `<span class="entry-point-chip" style="background:#555;">No standard main entry file detected</span>`;
+        } else {
+            entries.forEach(ep => {
+                const chip = document.createElement("span");
+                chip.className = "entry-point-chip";
+                chip.textContent = `▶ ${ep.file}`;
+                chip.title = ep.reason;
+                chip.addEventListener("click", () => {
+                    loadFile(ep.file);
+                    const el = getElement("section-explorer");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                });
+                entryList.appendChild(chip);
+            });
         }
-        else {
-
-            tag.textContent =
-                language;
-
-        }
-
-
-        container.appendChild(
-            tag
-        );
-
-    });
-
-}
-
-
-/* ========================================================
-   DEPENDENCIES
-======================================================== */
-
-function displayDependencies(
-    dependencies
-) {
-
-    const container =
-        getElement(
-            "dependencies"
-        );
-
-
-    if (!container) {
-        return;
     }
 
+    if (layersContainer) {
+        layersContainer.innerHTML = "";
+        const modules = map.modules || [];
+        const layers = map.layers || {};
 
-    container.innerHTML = "";
+        Object.keys(layers).forEach(layerName => {
+            const card = document.createElement("div");
+            card.className = "map-layer-card";
 
+            const title = document.createElement("div");
+            title.className = "layer-title";
+            title.textContent = layerName;
+            card.appendChild(title);
 
-    /*
-    ==================================================
-    PYTHON REQUIREMENTS
-    ==================================================
-    */
+            const modContainer = document.createElement("div");
+            modContainer.className = "layer-modules";
 
-    const requirements =
-        dependencies.python_requirements ||
-        [];
+            const moduleNames = layers[layerName] || [];
+            moduleNames.forEach(modName => {
+                const modData = modules.find(m => m.name === modName || m.id === modName) || {
+                    name: modName,
+                    file_count: "—",
+                    description: "Module component"
+                };
 
+                const item = document.createElement("div");
+                item.className = "map-module-item";
+                item.innerHTML = `
+                    <div class="module-header">
+                        <span class="module-name">📦 ${modData.name}</span>
+                        <span style="font-size: 11px; font-weight: 700; color: #4b6b3e;">${modData.file_count} files</span>
+                    </div>
+                    <div class="module-meta">${modData.description || "Module"}</div>
+                `;
 
-    if (
-        Array.isArray(requirements) &&
-        requirements.length > 0
-    ) {
-
-        requirements.forEach(
-            requirement => {
-
-                const element =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                element.className =
-                    "dependency-item";
-
-
-                element.textContent =
-                    requirement;
-
-
-                container.appendChild(
-                    element
-                );
-
-            }
-        );
-
-
-        return;
-    }
-
-
-    /*
-    ==================================================
-    OTHER DEPENDENCY FORMATS
-    ==================================================
-    */
-
-    const dependencyValues =
-        Object.values(
-            dependencies
-        );
-
-
-    let found = false;
-
-
-    dependencyValues.forEach(
-        dependencyGroup => {
-
-            if (
-                Array.isArray(
-                    dependencyGroup
-                )
-            ) {
-
-                dependencyGroup.forEach(
-                    dependency => {
-
-                        const element =
-                            document.createElement(
-                                "div"
-                            );
-
-
-                        element.className =
-                            "dependency-item";
-
-
-                        element.textContent =
-                            dependency;
-
-
-                        container.appendChild(
-                            element
-                        );
-
-
-                        found = true;
-
+                item.addEventListener("click", () => {
+                    const impactInput = getElement("impactFileInput");
+                    if (impactInput && modData.key_files && modData.key_files.length > 0) {
+                        impactInput.value = modData.key_files[0];
                     }
-                );
+                    if (modData.key_files && modData.key_files.length > 0) {
+                        loadFile(modData.key_files[0]);
+                    }
+                });
 
-            }
+                modContainer.appendChild(item);
+            });
 
-        }
-    );
-
-
-    if (!found) {
-
-        container.textContent =
-            "No dependencies detected.";
-
+            card.appendChild(modContainer);
+            layersContainer.appendChild(card);
+        });
     }
 
+    if (connList) {
+        connList.innerHTML = "";
+        const conns = map.connections || [];
+        conns.forEach(c => {
+            const span = document.createElement("span");
+            span.className = "connection-edge";
+            span.textContent = `${c.from} ➔ ${c.to} (${c.label})`;
+            connList.appendChild(span);
+        });
+    }
 }
 
-
 /* ========================================================
-   IMPORTANT FILES
+   FR-02: DISPLAY TECHNOLOGY STACK
 ======================================================== */
 
-function displayImportantFiles(
-    files
-) {
-
-    const container =
-        getElement(
-            "importantFiles"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    if (
-        !Array.isArray(files) ||
-        files.length === 0
-    ) {
-
-        container.innerHTML =
-            `
-            <div class="important-file">
-                No important files detected.
-            </div>
-            `;
-
-        return;
-    }
-
-
-    files.forEach(file => {
-
-        let fileName = file;
-
-
-        if (
-            typeof file === "object"
-        ) {
-
-            fileName =
-                file.path ||
-                file.file ||
-                file.name ||
-                "Unknown file";
-
+function displayTechStack(tech) {
+    function populate(id, items) {
+        const container = getElement(id);
+        if (!container) return;
+        container.innerHTML = "";
+        const list = Array.isArray(items) ? items : [items];
+        if (list.length === 0 || !list[0]) {
+            container.innerHTML = `<span class="tech-badge" style="color:#888;">None detected</span>`;
+            return;
         }
+        list.forEach(item => {
+            const badge = document.createElement("span");
+            badge.className = "tech-badge";
+            badge.textContent = item;
+            container.appendChild(badge);
+        });
+    }
 
-
-        const element =
-            document.createElement(
-                "div"
-            );
-
-
-        element.className =
-            "important-file";
-
-
-        element.textContent =
-            fileName;
-
-
-        element.addEventListener(
-            "click",
-            () => {
-
-                loadFile(
-                    fileName
-                );
-
-            }
-        );
-
-
-        container.appendChild(
-            element
-        );
-
-    });
-
+    populate("techLanguages", tech.languages || []);
+    populate("techFrameworks", tech.frameworks || []);
+    populate("techPackageManagers", tech.package_managers || []);
+    populate("techBuildTools", tech.build_tools || []);
+    populate("techTesting", tech.testing_tools || []);
 }
 
+/* ========================================================
+   FR-15: DISPLAY KNOWLEDGE CONCENTRATION
+======================================================== */
+
+function displayKnowledgeConcentration(kc) {
+    const alertBox = getElement("busFactorAlert");
+    if (alertBox) {
+        alertBox.textContent = kc.bus_factor_alert || "Knowledge contribution metrics calculated.";
+    }
+
+    const contribList = getElement("contributorsList");
+    if (contribList) {
+        contribList.innerHTML = "";
+        const contributors = kc.contributors || [];
+        contributors.forEach(c => {
+            const card = document.createElement("div");
+            card.className = "contributor-card";
+            card.innerHTML = `
+                <div class="contributor-name">👤 ${c.author}</div>
+                <div class="contributor-role">${c.role || "Contributor"}</div>
+                <div style="font-size: 12px; display: flex; justify-content: space-between;">
+                    <span>${c.commits} commits</span>
+                    <strong>${c.percentage}%</strong>
+                </div>
+                <div class="bar-wrapper">
+                    <div class="bar-fill" style="width: ${c.percentage}%;"></div>
+                </div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+                    ${c.files_touched_count} files modified
+                </div>
+            `;
+            contribList.appendChild(card);
+        });
+    }
+
+    const grid = getElement("moduleOwnershipGrid");
+    if (grid) {
+        grid.innerHTML = "";
+        const ownerships = kc.module_ownership || [];
+        ownerships.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "ownership-card";
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 13px;">${o.module}</strong>
+                    <span class="badge-risk" style="background: ${o.risk_color};">${o.risk_level} Risk</span>
+                </div>
+                <div style="font-size: 12px; margin-bottom: 4px;">
+                    Lead Contributor: <strong>${o.primary_owner}</strong> (${o.concentration_percentage}%)
+                </div>
+                <div style="font-size: 11px; color: var(--muted);">
+                    ${o.recommendation}
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+}
 
 /* ========================================================
-   LOAD FILE TREE
+   FR-16: DISPLAY CODE EVOLUTION TIMELINE
+======================================================== */
+
+function displayCodeEvolutionTimeline(timeline) {
+    const container = getElement("timelineContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const events = timeline.events || [];
+    if (events.length === 0) {
+        container.innerHTML = `<p style="font-size: 13px; color: var(--muted);">No Git commit history available.</p>`;
+        return;
+    }
+
+    events.forEach(ev => {
+        const node = document.createElement("div");
+        node.className = "timeline-node";
+
+        let tagClass = "tag-update";
+        if (ev.type === "Feature") tagClass = "tag-feature";
+        else if (ev.type === "Bug Fix") tagClass = "tag-bug-fix";
+        else if (ev.type === "Refactor") tagClass = "tag-refactor";
+
+        node.innerHTML = `
+            <div class="timeline-content-card">
+                <div class="timeline-meta">
+                    <span class="timeline-tag ${tagClass}">${ev.type}</span>
+                    <strong style="font-family: Consolas, monospace;">${ev.hash}</strong>
+                    <span>• ${ev.author}</span>
+                    <span>• ${ev.date}</span>
+                </div>
+                <div class="timeline-title">${ev.message}</div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">
+                    Touched ${ev.files_count} file(s)${ev.files && ev.files.length > 0 ? ': ' + ev.files.join(', ') : ''}
+                </div>
+            </div>
+        `;
+        container.appendChild(node);
+    });
+}
+
+/* ========================================================
+   FR-14 & US-JD-02: CHANGE PREVIEW / IMPACT AWARENESS
+======================================================== */
+
+async function analyzeChangeImpact() {
+    const fileInput = getElement("impactFileInput");
+    const symbolInput = getElement("impactSymbolInput");
+    const button = getElement("analyzeImpactButton");
+    const resultBox = getElement("impactResults");
+
+    const filePath = fileInput ? fileInput.value.trim() : "";
+    const symbol = symbolInput ? symbolInput.value.trim() : "";
+
+    if (!filePath) {
+        showError("Please enter a target file path to preview change impact.");
+        return;
+    }
+
+    clearError();
+    if (button) button.disabled = true;
+
+    try {
+        const data = await apiRequest("/change-preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: filePath, symbol: symbol || null })
+        });
+
+        // Set counts & badges
+        setText("directCountBadge", data.direct_dependents_count);
+        setText("indirectCountBadge", data.indirect_dependents_count);
+        setText("testsCountBadge", data.affected_tests_count);
+
+        const riskBadge = getElement("riskLevelBadge");
+        if (riskBadge) {
+            riskBadge.textContent = `${data.risk_level} Risk`;
+            riskBadge.style.background = data.risk_color || "#333";
+        }
+
+        // Direct Dependents list
+        const directList = getElement("directDependentsList");
+        if (directList) {
+            directList.innerHTML = "";
+            if (data.direct_dependents.length === 0) {
+                directList.innerHTML = `<span style="font-size: 12px; color: var(--muted);">No direct dependents found.</span>`;
+            } else {
+                data.direct_dependents.forEach(d => {
+                    const item = document.createElement("div");
+                    item.className = "impact-item";
+                    item.innerHTML = `<strong>${d.file}</strong><br><span style="font-size:11px; color:var(--muted);">${d.reason}</span>`;
+                    item.addEventListener("click", () => loadFile(d.file));
+                    directList.appendChild(item);
+                });
+            }
+        }
+
+        // Indirect Dependents list
+        const indirectList = getElement("indirectDependentsList");
+        if (indirectList) {
+            indirectList.innerHTML = "";
+            if (data.indirect_dependents.length === 0) {
+                indirectList.innerHTML = `<span style="font-size: 12px; color: var(--muted);">No indirect dependents found.</span>`;
+            } else {
+                data.indirect_dependents.forEach(d => {
+                    const item = document.createElement("div");
+                    item.className = "impact-item";
+                    item.innerHTML = `<strong>${d.file}</strong><br><span style="font-size:11px; color:var(--muted);">${d.reason}</span>`;
+                    item.addEventListener("click", () => loadFile(d.file));
+                    indirectList.appendChild(item);
+                });
+            }
+        }
+
+        // Affected tests list
+        const testsList = getElement("affectedTestsList");
+        if (testsList) {
+            testsList.innerHTML = "";
+            if (data.affected_tests.length === 0) {
+                testsList.innerHTML = `<span style="font-size: 12px; color: #dc2626;">⚠️ No automated tests found covering this component!</span>`;
+            } else {
+                data.affected_tests.forEach(t => {
+                    const item = document.createElement("div");
+                    item.className = "impact-item";
+                    item.style.borderColor = "#bae6fd";
+                    item.innerHTML = `<strong>🧪 ${t.file}</strong><br><span style="font-size:11px; color:var(--muted);">${t.reason}</span>`;
+                    item.addEventListener("click", () => loadFile(t.file));
+                    testsList.appendChild(item);
+                });
+            }
+        }
+
+        // Recommendations
+        const recList = getElement("impactRecommendations");
+        if (recList) {
+            recList.innerHTML = "";
+            (data.recommendations || []).forEach(r => {
+                const rec = document.createElement("div");
+                rec.style.fontSize = "12.5px";
+                rec.style.lineHeight = "1.6";
+                rec.textContent = `• ${r}`;
+                recList.appendChild(rec);
+            });
+        }
+
+        show(resultBox);
+
+    } catch (err) {
+        showError(err.message || "Failed to preview change impact.");
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+/* ========================================================
+   FR-13: TASK-TO-CODE GUIDANCE
+======================================================== */
+
+async function getTaskGuidance() {
+    const input = getElement("taskInput");
+    const button = getElement("taskGuideButton");
+    const resultBox = getElement("taskGuideResult");
+
+    const taskText = input ? input.value.trim() : "";
+    if (!taskText) {
+        showError("Please enter a short task description.");
+        return;
+    }
+
+    clearError();
+    if (button) button.disabled = true;
+
+    try {
+        const data = await apiRequest("/task-guidance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task: taskText })
+        });
+
+        const primaryFileEl = getElement("taskPrimaryFile");
+        if (primaryFileEl) {
+            primaryFileEl.textContent = data.primary_file;
+            primaryFileEl.onclick = () => loadFile(data.primary_file);
+        }
+
+        setText("taskPrimaryModule", data.primary_module);
+
+        const stepsContainer = getElement("taskPlanSteps");
+        if (stepsContainer) {
+            stepsContainer.innerHTML = "";
+            (data.action_plan || []).forEach(step => {
+                const div = document.createElement("div");
+                div.className = "plan-step";
+                div.textContent = step;
+                stepsContainer.appendChild(div);
+            });
+        }
+
+        show(resultBox);
+
+    } catch (err) {
+        showError(err.message || "Could not generate task guidance.");
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+/* ========================================================
+   FILE TREE & VIEWER
 ======================================================== */
 
 async function loadRepositoryFileTree() {
-
-    const container =
-        getElement(
-            "fileTree"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML =
-        "Loading files...";
-
+    const container = getElement("fileTree");
+    if (!container) return;
+    container.innerHTML = "Loading files...";
 
     try {
-
-        const data =
-            await apiRequest(
-                "/file-tree"
-            );
-
-
-        console.log(
-            "File tree:",
-            data
-        );
-
-
-        const tree =
-            data.file_tree ||
-            data.tree ||
-            data.files ||
-            [];
-
-
+        const data = await apiRequest("/file-tree");
+        const tree = data.file_tree || [];
         container.innerHTML = "";
 
-
-        if (
-            !Array.isArray(tree) ||
-            tree.length === 0
-        ) {
-
-            container.textContent =
-                "No files found.";
-
+        if (tree.length === 0) {
+            container.textContent = "No files found.";
             return;
         }
 
-
-        renderFileTree(
-            tree,
-            container
-        );
-
+        renderFileTree(tree, container);
+    } catch (error) {
+        container.textContent = "Could not load file tree.";
     }
-    catch (error) {
-
-        console.error(
-            "File tree error:",
-            error
-        );
-
-
-        container.textContent =
-            "Could not load file tree.";
-
-    }
-
 }
 
-
-/* ========================================================
-   RENDER FILE TREE
-======================================================== */
-
-function renderFileTree(
-    items,
-    container,
-    parentPath = ""
-) {
-
-    if (
-        !Array.isArray(items)
-    ) {
-
-        return;
-
-    }
-
+function renderFileTree(items, container, parentPath = "") {
+    if (!Array.isArray(items)) return;
 
     items.forEach(item => {
+        if (!item) return;
+        const name = item.name || "Unknown";
+        const currentPath = parentPath ? `${parentPath}/${name}` : name;
 
-        if (!item) {
-            return;
+        if (item.type === "directory" || Array.isArray(item.children)) {
+            const wrapper = document.createElement("div");
+            const directory = document.createElement("div");
+            directory.className = "tree-item tree-directory";
+            directory.textContent = `📁 ${name}`;
+            wrapper.appendChild(directory);
+
+            const children = document.createElement("div");
+            children.className = "tree-children";
+            renderFileTree(item.children || [], children, currentPath);
+            wrapper.appendChild(children);
+
+            directory.addEventListener("click", () => {
+                children.style.display = (children.style.display === "none") ? "block" : "none";
+            });
+
+            container.appendChild(wrapper);
+        } else {
+            const file = document.createElement("div");
+            file.className = "tree-item tree-file";
+            file.textContent = `📄 ${name}`;
+            file.addEventListener("click", () => loadFile(currentPath));
+            container.appendChild(file);
         }
-
-
-        const name =
-            item.name ||
-            item.path ||
-            "Unknown";
-
-
-        const currentPath =
-            parentPath
-                ? `${parentPath}/${name}`
-                : name;
-
-
-        /*
-        ==================================================
-        DIRECTORY
-        ==================================================
-        */
-
-        if (
-            item.type === "directory" ||
-            item.type === "folder" ||
-            Array.isArray(item.children)
-        ) {
-
-            const wrapper =
-                document.createElement(
-                    "div"
-                );
-
-
-            const directory =
-                document.createElement(
-                    "div"
-                );
-
-
-            directory.className =
-                "tree-item tree-directory";
-
-
-            directory.textContent =
-                `📁 ${name}`;
-
-
-            wrapper.appendChild(
-                directory
-            );
-
-
-            const children =
-                document.createElement(
-                    "div"
-                );
-
-
-            children.className =
-                "tree-children";
-
-
-            renderFileTree(
-                item.children || [],
-                children,
-                currentPath
-            );
-
-
-            wrapper.appendChild(
-                children
-            );
-
-
-            directory.addEventListener(
-                "click",
-                () => {
-
-                    if (
-                        children.style.display ===
-                        "none"
-                    ) {
-
-                        children.style.display =
-                            "block";
-
-                    }
-                    else {
-
-                        children.style.display =
-                            "none";
-
-                    }
-
-                }
-            );
-
-
-            container.appendChild(
-                wrapper
-            );
-
-        }
-
-
-        /*
-        ==================================================
-        FILE
-        ==================================================
-        */
-
-        else {
-
-            const file =
-                document.createElement(
-                    "div"
-                );
-
-
-            file.className =
-                "tree-item tree-file";
-
-
-            file.textContent =
-                `📄 ${name}`;
-
-
-            file.addEventListener(
-                "click",
-                () => {
-
-                    loadFile(
-                        currentPath
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                file
-            );
-
-        }
-
     });
-
 }
 
+async function loadFile(filePath, targetLine = null) {
+    const contentElement = getElement("fileContent");
+    const pathElement = getElement("filePath");
+    if (!contentElement) return;
 
-/* ========================================================
-   LOAD FILE
-======================================================== */
-
-async function loadFile(
-    filePath
-) {
-
-    const contentElement =
-        getElement(
-            "fileContent"
-        );
-
-
-    const pathElement =
-        getElement(
-            "filePath"
-        );
-
-
-    if (!contentElement) {
-        return;
-    }
-
-
-    if (!filePath) {
-
-        contentElement.textContent =
-            "No file selected.";
-
-        return;
-    }
-
-
-    contentElement.textContent =
-        "Loading file...";
-
-
-    if (pathElement) {
-
-        pathElement.textContent =
-            filePath;
-
-    }
-
+    contentElement.textContent = "Loading file...";
+    if (pathElement) pathElement.textContent = filePath;
 
     try {
+        const data = await apiRequest(`/file?path=${encodeURIComponent(filePath)}`);
+        const content = data.content ?? "";
+        contentElement.textContent = content || "This file is empty.";
 
-        const encodedPath =
-            encodeURIComponent(
-                filePath
-            );
-
-
-        const data =
-            await apiRequest(
-                `/file?path=${encodedPath}`
-            );
-
-
-        const content =
-            data.content ??
-            data.file_content ??
-            data.text ??
-            "";
-
-
-        contentElement.textContent =
-            content ||
-            "This file is empty.";
-
+        // Highlight line if specified (e.g. from citation click)
+        if (targetLine) {
+            const lines = content.split("\n");
+            let lineIdx = parseInt(targetLine, 10);
+            if (!isNaN(lineIdx) && lineIdx > 0 && lineIdx <= lines.length) {
+                // Focus explorer section
+                const explorerSec = getElement("section-explorer");
+                if (explorerSec) explorerSec.scrollIntoView({ behavior: "smooth" });
+            }
+        }
+    } catch (error) {
+        contentElement.textContent = `Could not load file.\n\n${error.message}`;
     }
-    catch (error) {
-
-        console.error(
-            "File error:",
-            error
-        );
-
-
-        contentElement.textContent =
-            `Could not load file.\n\n${error.message}`;
-
-    }
-
 }
 
-
 /* ========================================================
-   GENERATE ONBOARDING GUIDE
+   AI ONBOARDING GUIDE
 ======================================================== */
 
 async function generateOnboardingGuide() {
-
-    const button =
-        getElement(
-            "generateGuideButton"
-        );
-
-
-    const loading =
-        getElement(
-            "guideLoading"
-        );
-
-
-    const error =
-        getElement(
-            "guideError"
-        );
-
-
-    const guide =
-        getElement(
-            "onboardingGuide"
-        );
-
+    const button = getElement("generateGuideButton");
+    const loading = getElement("guideLoading");
+    const error = getElement("guideError");
+    const guide = getElement("onboardingGuide");
 
     hide(error);
-
     hide(guide);
-
     show(loading);
-
-
-    if (button) {
-        button.disabled = true;
-    }
-
+    if (button) button.disabled = true;
 
     try {
-
-        console.log(
-            "Generating onboarding guide..."
-        );
-
-
-        const data =
-            await apiRequest(
-                "/onboarding-guide"
-            );
-
-
-        console.log(
-            "Onboarding guide:",
-            data
-        );
-
-
-        const guideText =
-            data.guide ||
-            data.onboarding_guide ||
-            data.content ||
-            data.message ||
-            "";
-
-
-        if (!guideText) {
-
-            throw new Error(
-                "The onboarding guide was empty."
-            );
-
-        }
-
-
-        guide.textContent =
-            guideText;
-
-
+        const data = await apiRequest("/onboarding-guide");
+        const guideText = data.guide || "";
+        if (!guideText) throw new Error("The onboarding guide returned empty.");
+        guide.textContent = guideText;
         show(guide);
 
-    }
-    catch (errorObject) {
-
-        console.error(
-            "Guide error:",
-            errorObject
-        );
-
-
+        const statusBadge = getElement("guideReviewStatusBadge");
+        if (statusBadge) {
+            statusBadge.textContent = data.review_status || "AI Draft";
+        }
+    } catch (err) {
         if (error) {
-
-            error.textContent =
-                errorObject.message ||
-                "Could not generate the onboarding guide.";
-
-
+            error.textContent = err.message || "Could not generate onboarding guide.";
             show(error);
-
         }
-
-    }
-    finally {
-
+    } finally {
         hide(loading);
-
-
-        if (button) {
-            button.disabled = false;
-        }
-
+        if (button) button.disabled = false;
     }
-
 }
 
-
 /* ========================================================
-   ASK QUESTION
+   CONVERSATIONAL CODEBASE Q&A (FR-05, FR-06, US-SD-01)
 ======================================================== */
 
 async function askQuestion() {
+    const input = getElement("questionInput");
+    const button = getElement("askButton");
+    const loading = getElement("qaLoading");
+    const error = getElement("qaError");
+    const thread = getElement("chatThread");
 
-    const input =
-        getElement(
-            "questionInput"
-        );
-
-
-    const button =
-        getElement(
-            "askButton"
-        );
-
-
-    const loading =
-        getElement(
-            "qaLoading"
-        );
-
-
-    const error =
-        getElement(
-            "qaError"
-        );
-
-
-    const answerBox =
-        getElement(
-            "qaAnswer"
-        );
-
-
-    const answerText =
-        getElement(
-            "answerText"
-        );
-
-
-    const answerSources =
-        getElement(
-            "answerSources"
-        );
-
-
-    const question =
-        input
-            ? input.value.trim()
-            : "";
-
-
+    const question = input ? input.value.trim() : "";
     if (!question) {
-
-        if (error) {
-
-            error.textContent =
-                "Please enter a question.";
-
-            show(error);
-
-        }
-
+        showError("Please enter a question.");
         return;
-
     }
 
-
+    clearError();
     hide(error);
-
-    hide(answerBox);
-
     show(loading);
+    if (button) button.disabled = true;
 
-
-    if (button) {
-        button.disabled = true;
+    // Append user bubble to thread
+    if (thread) {
+        const userBubble = document.createElement("div");
+        userBubble.className = "chat-bubble chat-bubble-user";
+        userBubble.textContent = question;
+        thread.appendChild(userBubble);
+        thread.scrollTop = thread.scrollHeight;
     }
-
 
     try {
+        const data = await apiRequest("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                question: question,
+                conversation_history: conversationHistory
+            })
+        });
 
-        console.log(
-            "Question:",
-            question
-        );
+        // Retain conversational context (FR-05)
+        conversationHistory.push({ role: "user", content: question });
+        conversationHistory.push({ role: "assistant", content: data.answer || "" });
 
+        if (thread) {
+            const assistantBubble = document.createElement("div");
+            assistantBubble.className = "chat-bubble chat-bubble-assistant";
 
-        const data =
-            await apiRequest(
-                "/ask",
-                {
-                    method: "POST",
+            const textDiv = document.createElement("div");
+            textDiv.textContent = data.answer || "No response received.";
+            assistantBubble.appendChild(textDiv);
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+            // Grounded clickable citations (FR-06, US-SD-01)
+            const sources = data.sources || [];
+            if (sources.length > 0) {
+                const citationsDiv = document.createElement("div");
+                citationsDiv.style.marginTop = "12px";
+                citationsDiv.style.borderTop = "1px solid #e5eee2";
+                citationsDiv.style.paddingTop = "8px";
 
-                    body: JSON.stringify({
-                        question: question
-                    })
-                }
-            );
+                const label = document.createElement("div");
+                label.style.fontSize = "11px";
+                label.style.fontWeight = "700";
+                label.style.color = "#3a5f2e";
+                label.textContent = "VERIFIABLE SOURCES (CLICK TO INSPECT):";
+                citationsDiv.appendChild(label);
 
+                sources.forEach(src => {
+                    const pill = document.createElement("span");
+                    pill.className = "citation-pill";
+                    pill.textContent = `📍 ${src.file}:${src.line}`;
+                    pill.title = `Inspect ${src.file} at line ${src.line}`;
+                    pill.addEventListener("click", () => {
+                        loadFile(src.file, src.line);
+                    });
+                    citationsDiv.appendChild(pill);
+                });
 
-        console.log(
-            "Q&A response:",
-            data
-        );
+                assistantBubble.appendChild(citationsDiv);
+            }
 
-
-        /*
-        ================================================
-        ANSWER
-        ================================================
-        */
-
-        const answer =
-            data.answer ||
-            data.response ||
-            data.message ||
-            "";
-
-
-        if (answerText) {
-
-            answerText.textContent =
-                answer ||
-                "No answer was returned.";
-
+            thread.appendChild(assistantBubble);
+            thread.scrollTop = thread.scrollHeight;
         }
 
+        if (input) input.value = "";
 
-        /*
-        ================================================
-        SOURCES
-        ================================================
-        */
-
-        displayAnswerSources(
-            data.sources || []
-        );
-
-
-        show(answerBox);
-
-    }
-    catch (errorObject) {
-
-        console.error(
-            "Q&A error:",
-            errorObject
-        );
-
-
+    } catch (err) {
         if (error) {
-
-            error.textContent =
-                errorObject.message ||
-                "Could not answer the question.";
-
+            error.textContent = err.message || "Could not answer question.";
             show(error);
-
         }
-
-    }
-    finally {
-
+    } finally {
         hide(loading);
-
-
-        if (button) {
-            button.disabled = false;
-        }
-
+        if (button) button.disabled = false;
     }
-
 }
 
-
 /* ========================================================
-   ANSWER SOURCES
+   SENIOR REVIEW & MANAGEMENT DASHBOARDS
 ======================================================== */
 
-function displayAnswerSources(
-    sources
-) {
-
-    const container =
-        getElement(
-            "answerSources"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    if (
-        !Array.isArray(sources) ||
-        sources.length === 0
-    ) {
-
-        container.innerHTML =
-            `
-            <div class="source-item">
-                No source information returned.
-            </div>
-            `;
-
-        return;
-    }
-
-
-    sources.forEach(source => {
-
-        const element =
-            document.createElement(
-                "div"
-            );
-
-
-        element.className =
-            "source-item";
-
-
-        if (
-            typeof source === "string"
-        ) {
-
-            element.textContent =
-                source;
-
+async function loadSeniorReviewStatus() {
+    try {
+        const data = await apiRequest("/senior/review");
+        const statusEl = getElement("seniorApprovalDisplay");
+        if (statusEl) {
+            statusEl.textContent = data.is_approved ? `Approved by ${data.approved_by || 'Senior'}` : "AI Draft (Pending Review)";
+            statusEl.style.color = data.is_approved ? "#166534" : "#b45309";
         }
-        else {
-
-            const file =
-                source.file ||
-                source.path ||
-                "Unknown file";
-
-
-            const line =
-                source.line ||
-                source.line_number ||
-                "";
-
-
-            element.textContent =
-                line
-                    ? `${file} — line ${line}`
-                    : file;
-
-        }
-
-
-        container.appendChild(
-            element
-        );
-
-    });
-
+    } catch {
+        // Non-blocking
+    }
 }
 
+async function approveSeniorReview() {
+    const button = getElement("seniorApproveButton");
+    if (button) button.disabled = true;
 
-/* ========================================================
-   QUESTION INPUT
-======================================================== */
+    try {
+        await apiRequest("/senior/review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                approved: true,
+                feedback: "Reviewed and approved for new hire onboarding.",
+                approved_by: "Senior Codebase Owner"
+            })
+        });
 
-function setupQuestionInput() {
+        await loadSeniorReviewStatus();
+        const badge = getElement("guideReviewStatusBadge");
+        if (badge) badge.textContent = "Senior Approved";
 
-    const input =
-        getElement(
-            "questionInput"
-        );
-
-
-    if (!input) {
-        return;
+    } catch (err) {
+        showError("Failed to update senior review: " + err.message);
+    } finally {
+        if (button) button.disabled = false;
     }
-
-
-    input.addEventListener(
-        "keydown",
-        event => {
-
-            /*
-            Ctrl + Enter
-            sends the question
-            */
-
-            if (
-                event.key === "Enter" &&
-                event.ctrlKey
-            ) {
-
-                event.preventDefault();
-
-                askQuestion();
-
-            }
-
-        }
-    );
-
 }
 
+async function loadManagementOverview() {
+    try {
+        const data = await apiRequest("/management/overview");
+        const reporting = data.aggregate_reporting || {};
+        setText("mgmtQueriesCount", reporting.total_questions_asked_aggregate ?? 0);
+    } catch {
+        // Non-blocking
+    }
+}
 
 /* ========================================================
-   ENTER KEY FOR REPOSITORY URL
+   INITIALIZATION
 ======================================================== */
 
-function setupRepositoryInput() {
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("Codebase Onboarding Companion (Phase 1) Initialized.");
 
-    const input =
-        getElement(
-            "repoUrl"
-        );
+    // Analyze Button
+    const analyzeBtn = getElement("analyzeButton");
+    if (analyzeBtn) analyzeBtn.addEventListener("click", analyzeRepository);
 
-
-    if (!input) {
-        return;
-    }
-
-
-    input.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key === "Enter"
-            ) {
-
-                event.preventDefault();
-
+    // Enter key on repo url
+    const repoInput = getElement("repoUrl");
+    if (repoInput) {
+        repoInput.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+                e.preventDefault();
                 analyzeRepository();
-
             }
-
-        }
-    );
-
-}
-
-
-/* ========================================================
-   INITIALIZE
-======================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        console.log(
-            "Codebase Onboarding Companion loaded."
-        );
-
-
-        /*
-        ================================================
-        ANALYZE BUTTON
-        ================================================
-        */
-
-        const analyzeButton =
-            getElement(
-                "analyzeButton"
-            );
-
-
-        if (analyzeButton) {
-
-            analyzeButton.addEventListener(
-                "click",
-                analyzeRepository
-            );
-
-        }
-
-
-        /*
-        ================================================
-        AI GUIDE BUTTON
-        ================================================
-        */
-
-        const guideButton =
-            getElement(
-                "generateGuideButton"
-            );
-
-
-        if (guideButton) {
-
-            guideButton.addEventListener(
-                "click",
-                generateOnboardingGuide
-            );
-
-        }
-
-
-        /*
-        ================================================
-        ASK BUTTON
-        ================================================
-        */
-
-        const askButton =
-            getElement(
-                "askButton"
-            );
-
-
-        if (askButton) {
-
-            askButton.addEventListener(
-                "click",
-                askQuestion
-            );
-
-        }
-
-
-        /*
-        ================================================
-        INPUTS
-        ================================================
-        */
-
-        setupQuestionInput();
-
-        setupRepositoryInput();
-
+        });
     }
-);
+
+    // Impact Analysis Button
+    const impactBtn = getElement("analyzeImpactButton");
+    if (impactBtn) impactBtn.addEventListener("click", analyzeChangeImpact);
+
+    // Task Guidance Button
+    const taskBtn = getElement("taskGuideButton");
+    if (taskBtn) taskBtn.addEventListener("click", getTaskGuidance);
+
+    // Generate Guide Button
+    const guideBtn = getElement("generateGuideButton");
+    if (guideBtn) guideBtn.addEventListener("click", generateOnboardingGuide);
+
+    // Ask Button
+    const askBtn = getElement("askButton");
+    if (askBtn) askBtn.addEventListener("click", askQuestion);
+
+    // Question input Ctrl+Enter
+    const qInput = getElement("questionInput");
+    if (qInput) {
+        qInput.addEventListener("keydown", e => {
+            if (e.key === "Enter" && e.ctrlKey) {
+                e.preventDefault();
+                askQuestion();
+            }
+        });
+    }
+
+    // Senior Approve Button
+    const approveBtn = getElement("seniorApproveButton");
+    if (approveBtn) approveBtn.addEventListener("click", approveSeniorReview);
+});

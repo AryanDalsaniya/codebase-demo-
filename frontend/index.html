@@ -3,18 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Codebase Onboarding Companion</title>
-    <meta
-        name="description"
-        content="Explore GitHub repositories, map important files, and get an AI-powered developer onboarding guide."
-    >
-
+    <meta name="description" content="AI-assisted onboarding platform with interactive Codebase Map, Tech Stack Detection, Knowledge Concentration, Code Evolution Timeline, Change Preview, and Source-Referenced Q&A.">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -30,8 +21,8 @@
 
         <div class="hero-topline">
             <div class="brand-mark" aria-hidden="true">&lt;/&gt;</div>
-            <span class="eyebrow">CODEBASE COMPANION</span>
-            <span class="local-badge"><span class="status-dot"></span> Runs locally</span>
+            <span class="eyebrow">CODEBASE ONBOARDING COMPANION</span>
+            <span class="local-badge"><span class="status-dot"></span> Runs locally (Llama 3.2)</span>
         </div>
 
         <div class="hero-copy">
@@ -39,16 +30,32 @@
                 <p class="hero-kicker">YOUR NEW REPO, LESS MYSTERIOUS</p>
                 <h1>Get to know<br>your <span>codebase.</span></h1>
                 <p class="subtitle">
-                    Turn an unfamiliar GitHub repository into a map you can explore,
-                    with an AI guide to help you find your footing.
+                    Turn an unfamiliar GitHub repository into an interactive Codebase Map,
+                    explore knowledge concentration and evolution history, preview the impact of edits,
+                    and ask questions grounded in source code citations.
                 </p>
+
+                <!-- QUICK NAVIGATION -->
+                <nav class="nav-pills" aria-label="Section navigation">
+                    <a href="#section-snapshot" class="nav-pill">02 Snapshot</a>
+                    <a href="#section-map" class="nav-pill">03 Codebase Map</a>
+                    <a href="#section-tech" class="nav-pill">04 Tech Stack</a>
+                    <a href="#section-kc" class="nav-pill">05 Knowledge Concentration</a>
+                    <a href="#section-timeline" class="nav-pill">06 Evolution Timeline</a>
+                    <a href="#section-impact" class="nav-pill">07 Change Preview</a>
+                    <a href="#section-task" class="nav-pill">08 Task Guidance</a>
+                    <a href="#section-explorer" class="nav-pill">09 File Explorer</a>
+                    <a href="#section-guide" class="nav-pill">10 AI Guide</a>
+                    <a href="#section-qa" class="nav-pill">11 Codebase Q&amp;A</a>
+                    <a href="#section-mgmt" class="nav-pill">12 Manager &amp; Senior View</a>
+                </nav>
             </div>
             <div class="hero-orbit" aria-hidden="true">
                 <div class="orbit-ring orbit-ring-one"></div>
                 <div class="orbit-ring orbit-ring-two"></div>
                 <div class="orbit-core">&lt; / &gt;</div>
                 <span class="orbit-label orbit-label-top">MAP</span>
-                <span class="orbit-label orbit-label-bottom">UNDERSTAND</span>
+                <span class="orbit-label orbit-label-bottom">PREVIEW</span>
             </div>
         </div>
 
@@ -56,27 +63,20 @@
 
 
     <!-- =====================================================
-         REPOSITORY INPUT
+         01 / REPOSITORY INPUT
     ====================================================== -->
 
-    <section class="repository-card">
+    <section class="repository-card" id="section-input">
 
         <div class="section-heading">
-
             <div>
                 <span class="card-kicker">01 / START HERE</span>
-                <h2>Bring a repository</h2>
+                <h2>Connect a repository</h2>
             </div>
-
-            <span class="repository-type">
-                Public GitHub repo
-            </span>
-
+            <span class="repository-type">Public GitHub repository</span>
         </div>
 
-
         <div class="repository-controls">
-
             <input
                 id="repoUrl"
                 type="text"
@@ -86,478 +86,537 @@
                 autocomplete="url"
             >
 
-            <button
-                id="analyzeButton"
-                type="button"
-                class="primary-button"
-            >
+            <button id="analyzeButton" type="button" class="primary-button">
                 <span>Analyze repository</span>
                 <span class="button-arrow">→</span>
             </button>
-
         </div>
         <p class="repository-hint">
-            Paste a repository link, including links copied from a branch page.
-            Private repositories are not supported.
+            Paste a public GitHub repository link (branches supported).
+            Secrets and sensitive files (.env, keys) are detected and excluded automatically per security policies (FR-20).
         </p>
 
     </section>
 
 
     <!-- =====================================================
-         ANALYSIS LOADING
+         LOADING & ERRORS
     ====================================================== -->
 
-    <div
-        id="loading"
-        class="loading hidden"
-        role="status"
-        aria-live="polite"
-    >
+    <div id="loading" class="loading hidden" role="status" aria-live="polite">
         <div class="spinner"></div>
-
         <div>
             <strong>Analyzing repository</strong>
-
-            <span class="loading-detail">
-                Cloning and examining the codebase...
-            </span>
+            <span class="loading-detail">Cloning, building Codebase Map, and analyzing Git history...</span>
         </div>
     </div>
 
-
-    <!-- =====================================================
-         GENERAL ERROR
-    ====================================================== -->
-
-    <div
-        id="error"
-        class="error-box hidden"
-        role="alert"
-        aria-live="assertive"
-    ></div>
+    <div id="error" class="error-box hidden" role="alert" aria-live="assertive"></div>
 
 
     <!-- =====================================================
-         RESULTS
+         RESULTS CONTAINER
     ====================================================== -->
 
-    <main
-        id="result"
-        class="results hidden"
-    >
+    <main id="result" class="results hidden">
 
 
         <!-- =================================================
-             02 / OVERVIEW
+             02 / REPOSITORY SNAPSHOT
         ================================================== -->
 
-        <section class="section">
+        <section class="section" id="section-snapshot">
 
-            <div class="section-number">
-                02 / REPOSITORY SNAPSHOT
-            </div>
+            <div class="section-number">02 / REPOSITORY SNAPSHOT</div>
 
             <div class="section-title-row">
                 <h2>Repository overview</h2>
-                <span class="section-note">A quick read on what is inside</span>
+                <span id="securityBadge" class="privacy-badge">🔒 Secrets Excluded from AI</span>
             </div>
 
-
-            <div
-                id="projectDescription"
-                class="project-description"
-            >
+            <div id="projectDescription" class="project-description">
                 Repository analyzed successfully.
             </div>
 
-
-            <!-- SUMMARY CARDS -->
-
             <div class="summary-grid">
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        PROJECT
-                    </span>
-
-                    <strong id="projectName">
-                        —
-                    </strong>
-
+                    <span class="summary-label">PROJECT</span>
+                    <strong id="projectName">—</strong>
                 </div>
 
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        FILES
-                    </span>
-
-                    <strong id="fileCount">
-                        —
-                    </strong>
-
+                    <span class="summary-label">FILES</span>
+                    <strong id="fileCount">—</strong>
                 </div>
 
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        DIRECTORIES
-                    </span>
-
-                    <strong id="directoryCount">
-                        —
-                    </strong>
-
+                    <span class="summary-label">DIRECTORIES</span>
+                    <strong id="directoryCount">—</strong>
                 </div>
 
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        LANGUAGES
-                    </span>
-
-                    <strong id="languageCount">
-                        —
-                    </strong>
-
+                    <span class="summary-label">LANGUAGES</span>
+                    <strong id="languageCount">—</strong>
                 </div>
 
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        CLASSES
-                    </span>
-
-                    <strong id="classCount">
-                        —
-                    </strong>
-
+                    <span class="summary-label">CLASSES</span>
+                    <strong id="classCount">—</strong>
                 </div>
 
-
                 <div class="summary-card">
-
-                    <span class="summary-label">
-                        FUNCTIONS
-                    </span>
-
-                    <strong id="functionCount">
-                        —
-                    </strong>
-
+                    <span class="summary-label">FUNCTIONS</span>
+                    <strong id="functionCount">—</strong>
                 </div>
-
             </div>
 
         </section>
 
 
         <!-- =================================================
-             03 / LANGUAGES
+             03 / INTERACTIVE CODEBASE MAP (FR-03)
         ================================================== -->
 
-        <section class="section">
+        <section class="section" id="section-map">
 
-            <div class="section-number">
-                03 / TECHNOLOGIES
+            <div class="section-number">03 / INTERACTIVE CODEBASE MAP</div>
+
+            <div class="section-title-row">
+                <h2>System architecture &amp; modules</h2>
+                <span class="section-note">Organised component view with entry points</span>
             </div>
-
-            <h2>Languages</h2>
-
-            <div
-                id="languages"
-                class="tag-list"
-            ></div>
-
-        </section>
-
-
-        <!-- =================================================
-             04 / DEPENDENCIES
-        ================================================== -->
-
-        <section class="section">
-
-            <div class="section-number">
-                04 / DEPENDENCIES
-            </div>
-
-            <h2>Dependencies</h2>
-
-            <div
-                id="dependencies"
-                class="dependencies"
-            >
-                No dependencies detected.
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             05 / IMPORTANT FILES
-        ================================================== -->
-
-        <section class="section">
-
-            <div class="section-number">
-                05 / START HERE
-            </div>
-
-            <h2>Important Files</h2>
-
-            <div
-                id="importantFiles"
-                class="important-files"
-            ></div>
-
-        </section>
-
-
-        <!-- =================================================
-             06 / FILE EXPLORER
-        ================================================== -->
-
-        <section class="section">
-
-            <div class="section-number">
-                06 / CODEBASE
-            </div>
-
-            <h2>File Explorer</h2>
-
-
-            <div class="file-browser">
-
-                <!-- FILE TREE -->
-
-                <div class="file-tree-panel">
-
-                    <div class="panel-header">
-                        Repository files
-                    </div>
-
-                    <div
-                        id="fileTree"
-                        class="file-tree"
-                    >
-                        Loading files...
-                    </div>
-
-                </div>
-
-
-                <!-- FILE CONTENT -->
-
-                <div class="file-content-panel">
-
-                    <div class="panel-header">
-
-                        <span>
-                            File preview
-                        </span>
-
-                        <span
-                            id="filePath"
-                            class="file-path"
-                        >
-                            No file selected
-                        </span>
-
-                    </div>
-
-                    <pre
-                        id="fileContent"
-                        class="file-content"
-                    >Select a file from the explorer.</pre>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             07 / AI ONBOARDING
-        ================================================== -->
-
-        <section class="section">
-
-            <div class="section-number">
-                07 / AI GUIDE
-            </div>
-
-            <div class="guide-header">
-
-                <div>
-
-                    <h2>
-                        AI Onboarding Guide
-                    </h2>
-
-                    <p>
-                        Llama 3.2 explains the repository
-                        for a new developer.
-                    </p>
-
-                </div>
-
-                <button
-                    id="generateGuideButton"
-                    type="button"
-                    class="secondary-button"
-                >
-                    Generate guide
-                </button>
-
-            </div>
-
-
-            <div
-                id="guideLoading"
-                class="loading hidden"
-            >
-
-                <div class="spinner"></div>
-
-                <div>
-                    <strong>
-                        Generating onboarding guide
-                    </strong>
-
-                    <span class="loading-detail">
-                        Llama 3.2 is examining the repository information...
-                    </span>
-                </div>
-
-            </div>
-
-
-            <div
-                id="guideError"
-                class="error-box hidden"
-            ></div>
-
-
-            <div
-                id="onboardingGuide"
-                class="guide-content hidden"
-            ></div>
-
-        </section>
-
-
-        <!-- =================================================
-             08 / ASK THE CODEBASE
-        ================================================== -->
-
-        <section class="section">
-
-            <div class="section-number">
-                08 / ASK THE CODEBASE
-            </div>
-
-            <h2>Codebase Q&A</h2>
 
             <p class="section-description">
-                Ask questions about the repository.
-                The system searches the codebase and
-                uses Llama 3.2 to generate the answer.
+                The Codebase Map parses the project into architectural layers, highlights program entry points,
+                and reveals how modules interact. Click any module to inspect its files and symbols.
             </p>
 
+            <div class="codebase-map-container">
 
-            <div class="question-box">
-
-                <textarea
-                    id="questionInput"
-                    rows="4"
-                    placeholder="Example: Where is the Session class implemented?"
-                ></textarea>
-
-
-                <button
-                    id="askButton"
-                    type="button"
-                    class="primary-button ask-button"
-                >
-                    <span>Ask Llama</span>
-
-                    <span class="button-arrow">
-                        →
-                    </span>
-                </button>
-
-            </div>
-
-
-            <p class="question-hint">
-                Tip: Try questions such as
-                "What does this project do?",
-                "Where is the Session class implemented?",
-                or "How are HTTP requests handled?"
-            </p>
-
-
-            <div
-                id="qaLoading"
-                class="loading hidden"
-            >
-
-                <div class="spinner"></div>
-
-                <div>
-                    <strong>
-                        Searching the codebase
-                    </strong>
-
-                    <span class="loading-detail">
-                        Finding relevant code and asking Llama 3.2...
-                    </span>
+                <!-- ENTRY POINTS -->
+                <div class="entry-points-banner">
+                    <strong style="font-size: 12px; text-transform: uppercase; color: #23421a;">🚀 Program Entry Points:</strong>
+                    <div id="entryPointsList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <span class="entry-point-chip">Scanning...</span>
+                    </div>
                 </div>
 
-            </div>
-
-
-            <div
-                id="qaError"
-                class="error-box hidden"
-            ></div>
-
-
-            <div
-                id="qaAnswer"
-                class="qa-answer hidden"
-            >
-
-                <div class="answer-heading">
-                    Answer
+                <!-- ARCHITECTURE LAYERS & MODULES -->
+                <div id="mapLayersContainer" class="map-layers">
+                    <!-- Injected dynamically -->
                 </div>
 
-                <div
-                    id="answerText"
-                    class="answer-text"
-                ></div>
-
-
-                <div class="sources-heading">
-                    Sources
+                <!-- MODULE GRAPH CONNECTIONS -->
+                <div class="graph-connections">
+                    <strong style="font-size: 11px; text-transform: uppercase; color: #4e6047;">🔗 Module Interactions:</strong>
+                    <div id="connectionsList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <!-- Injected dynamically -->
+                    </div>
                 </div>
-
-                <div
-                    id="answerSources"
-                    class="answer-sources"
-                ></div>
 
             </div>
 
         </section>
+
+
+        <!-- =================================================
+             04 / TECHNOLOGY STACK (FR-02)
+        ================================================== -->
+
+        <section class="section" id="section-tech">
+
+            <div class="section-number">04 / TECHNOLOGY STACK</div>
+
+            <div class="section-title-row">
+                <h2>Detected technologies &amp; tooling</h2>
+                <span class="section-note">Languages, frameworks, package managers &amp; build tools</span>
+            </div>
+
+            <div class="tech-grid">
+                <div class="tech-box">
+                    <h3>Primary Languages</h3>
+                    <div id="techLanguages" class="tech-badges-list"></div>
+                </div>
+
+                <div class="tech-box">
+                    <h3>Frameworks &amp; Libraries</h3>
+                    <div id="techFrameworks" class="tech-badges-list"></div>
+                </div>
+
+                <div class="tech-box">
+                    <h3>Package Managers</h3>
+                    <div id="techPackageManagers" class="tech-badges-list"></div>
+                </div>
+
+                <div class="tech-box">
+                    <h3>Build &amp; Container Tools</h3>
+                    <div id="techBuildTools" class="tech-badges-list"></div>
+                </div>
+
+                <div class="tech-box">
+                    <h3>Testing &amp; QA</h3>
+                    <div id="techTesting" class="tech-badges-list"></div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             05 / SUPPORTING FEATURE 1: KNOWLEDGE CONCENTRATION (FR-15)
+        ================================================== -->
+
+        <section class="section" id="section-kc">
+
+            <div class="section-number">05 / SUPPORTING FEATURE: KNOWLEDGE CONCENTRATION</div>
+
+            <div class="section-title-row">
+                <h2>Knowledge concentration &amp; code ownership</h2>
+                <span class="section-note">Historical contribution &amp; bus factor analysis</span>
+            </div>
+
+            <p class="section-description">
+                Identifies which senior developers and maintainers authored key modules based on Git commit history.
+                Highlights single-contributor dependencies and recommends the go-to code owner for technical questions.
+            </p>
+
+            <div class="kc-dashboard">
+                <div id="busFactorAlert" class="bus-factor-box">
+                    Analyzing Git commit distribution...
+                </div>
+
+                <h3 style="font-size: 13px; text-transform: uppercase; color: var(--muted); margin-top: 10px;">Top Contributors &amp; Expertise</h3>
+                <div id="contributorsList" class="contributors-list">
+                    <!-- Injected dynamically -->
+                </div>
+
+                <h3 style="font-size: 13px; text-transform: uppercase; color: var(--muted); margin-top: 10px;">Module Ownership Breakdown</h3>
+                <div id="moduleOwnershipGrid" class="ownership-grid">
+                    <!-- Injected dynamically -->
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             06 / SUPPORTING FEATURE 2: CODE EVOLUTION TIMELINE (FR-16)
+        ================================================== -->
+
+        <section class="section" id="section-timeline">
+
+            <div class="section-number">06 / SUPPORTING FEATURE: CODE EVOLUTION TIMELINE</div>
+
+            <div class="section-title-row">
+                <h2>Code evolution history</h2>
+                <span class="section-note">Reconstructs how key modules changed over time</span>
+            </div>
+
+            <p class="section-description">
+                A chronological reconstruction of the project's commit history, illustrating major architecture milestones,
+                feature introductions, and refactoring efforts.
+            </p>
+
+            <div id="timelineContainer" class="timeline-flow">
+                <!-- Injected dynamically -->
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             07 / SUPPORTING FEATURE 3: CHANGE PREVIEW (FR-14, US-JD-02)
+        ================================================== -->
+
+        <section class="section" id="section-impact">
+
+            <div class="section-number">07 / SUPPORTING FEATURE: CHANGE PREVIEW</div>
+
+            <div class="section-title-row">
+                <h2>Change preview &amp; impact awareness</h2>
+                <span class="section-note">Surfaces affected files, dependencies &amp; tests before editing</span>
+            </div>
+
+            <p class="section-description">
+                Junior developers can run an impact check before touching a function or file to discover
+                which other files directly or indirectly depend on it, and which test suites must be executed.
+            </p>
+
+            <div class="preview-form">
+                <input
+                    id="impactFileInput"
+                    type="text"
+                    placeholder="File path (e.g., chess.h or backend/main.py)"
+                    aria-label="Target file path"
+                >
+
+                <input
+                    id="impactSymbolInput"
+                    type="text"
+                    placeholder="Optional function or class name (e.g., Board)"
+                    aria-label="Target function or class"
+                >
+
+                <button id="analyzeImpactButton" type="button" class="primary-button" style="min-height: 58px;">
+                    <span>Analyze Impact</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+
+            <div id="impactResults" class="blast-radius-container hidden">
+                <div class="blast-card">
+                    <h3>
+                        Direct Dependents
+                        <span id="directCountBadge" class="badge-risk" style="background: #2b5520;">0</span>
+                    </h3>
+                    <div id="directDependentsList" class="impact-list">None</div>
+                </div>
+
+                <div class="blast-card">
+                    <h3>
+                        Indirect Dependents
+                        <span id="indirectCountBadge" class="badge-risk" style="background: #3f5539;">0</span>
+                    </h3>
+                    <div id="indirectDependentsList" class="impact-list">None</div>
+                </div>
+
+                <div class="blast-card">
+                    <h3>
+                        Affected Test Suites
+                        <span id="testsCountBadge" class="badge-risk" style="background: #0284c7;">0</span>
+                    </h3>
+                    <div id="affectedTestsList" class="impact-list">None</div>
+                </div>
+
+                <div class="blast-card" style="grid-column: 1 / -1;">
+                    <h3>
+                        Risk Assessment &amp; Guidance
+                        <span id="riskLevelBadge" class="badge-risk">Assessment</span>
+                    </h3>
+                    <div id="impactRecommendations" class="impact-list"></div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             08 / TASK-TO-CODE GUIDANCE (FR-13)
+        ================================================== -->
+
+        <section class="section" id="section-task">
+
+            <div class="section-number">08 / TASK-TO-CODE GUIDANCE</div>
+
+            <div class="section-title-row">
+                <h2>Task-to-code navigation</h2>
+                <span class="section-note">Points new hires to the starting files &amp; functions</span>
+            </div>
+
+            <p class="section-description">
+                Handed a Jira ticket or unfamiliar feature assignment? Describe the task below and get
+                an actionable starting point with the exact files, functions, and tests to inspect.
+            </p>
+
+            <div class="question-box">
+                <textarea
+                    id="taskInput"
+                    rows="3"
+                    placeholder="Example: Fix castling move validation or Add a user authentication route"
+                ></textarea>
+
+                <button id="taskGuideButton" type="button" class="primary-button ask-button">
+                    <span>Get Guidance</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+
+            <div id="taskGuideResult" class="guidance-box hidden">
+                <div class="blast-card">
+                    <h3>Recommended Starting Point</h3>
+                    <p style="font-size: 13px; margin: 8px 0;">
+                        Primary File: <strong id="taskPrimaryFile" style="color: #2e5a20; cursor: pointer;">—</strong>
+                        &nbsp;|&nbsp; Module: <span id="taskPrimaryModule">—</span>
+                    </p>
+                    <div id="taskPlanSteps" class="plan-steps"></div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             09 / FILE EXPLORER & PREVIEW
+        ================================================== -->
+
+        <section class="section" id="section-explorer">
+
+            <div class="section-number">09 / CODEBASE EXPLORER</div>
+
+            <h2>File Explorer &amp; Source Viewer</h2>
+
+            <div class="file-browser">
+                <div class="file-tree-panel">
+                    <div class="panel-header">Repository files</div>
+                    <div id="fileTree" class="file-tree">Loading files...</div>
+                </div>
+
+                <div class="file-content-panel">
+                    <div class="panel-header">
+                        <span>File preview</span>
+                        <span id="filePath" class="file-path">No file selected</span>
+                    </div>
+                    <pre id="fileContent" class="file-content">Select a file from the explorer or click a citation to inspect.</pre>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             10 / AI ONBOARDING GUIDE
+        ================================================== -->
+
+        <section class="section" id="section-guide">
+
+            <div class="section-number">10 / AI ONBOARDING GUIDE</div>
+
+            <div class="guide-header">
+                <div>
+                    <h2>Comprehensive Onboarding Guide</h2>
+                    <p>Structured, beginner-friendly reading order generated with local Llama 3.2.</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span id="guideReviewStatusBadge" class="privacy-badge" style="background: #f0fdf4; border-color: #bbf7d0; color: #166534;">
+                        AI Draft
+                    </span>
+                    <button id="generateGuideButton" type="button" class="secondary-button">
+                        Generate guide
+                    </button>
+                </div>
+            </div>
+
+            <div id="guideLoading" class="loading hidden">
+                <div class="spinner"></div>
+                <div>
+                    <strong>Generating onboarding guide</strong>
+                    <span class="loading-detail">Llama 3.2 is synthesizing architecture, entry points, and reading order...</span>
+                </div>
+            </div>
+
+            <div id="guideError" class="error-box hidden"></div>
+            <div id="onboardingGuide" class="guide-content hidden"></div>
+
+        </section>
+
+
+        <!-- =================================================
+             11 / CODEBASE Q&A CHATBOT (FR-05, FR-06, US-SD-01)
+        ================================================== -->
+
+        <section class="section" id="section-qa">
+
+            <div class="section-number">11 / CONVERSATIONAL CODEBASE Q&amp;A</div>
+
+            <h2>Interactive Code Chatbot</h2>
+
+            <p class="section-description">
+                Ask natural-language questions about logic, architecture, or functions.
+                Answers are grounded directly in the codebase with clickable exact file and line citations (US-SD-01).
+            </p>
+
+            <div id="chatThread" class="chat-thread">
+                <div class="chat-bubble chat-bubble-assistant">
+                    Hello! I am your Codebase Companion. Connect a repository above or ask me any question about how this project operates.
+                </div>
+            </div>
+
+            <div class="question-box">
+                <textarea
+                    id="questionInput"
+                    rows="3"
+                    placeholder="Example: How does move validation work? Where are HTTP responses serialized?"
+                ></textarea>
+
+                <button id="askButton" type="button" class="primary-button ask-button">
+                    <span>Ask Llama</span>
+                    <span class="button-arrow">→</span>
+                </button>
+            </div>
+
+            <div id="qaLoading" class="loading hidden">
+                <div class="spinner"></div>
+                <div>
+                    <strong>Searching the codebase</strong>
+                    <span class="loading-detail">Finding relevant source lines and querying Llama 3.2 with strict source grounding...</span>
+                </div>
+            </div>
+
+            <div id="qaError" class="error-box hidden"></div>
+
+        </section>
+
+
+        <!-- =================================================
+             12 / SENIOR & MANAGER DASHBOARD (FR-17, FR-18, FR-19)
+        ================================================== -->
+
+        <section class="section" id="section-mgmt">
+
+            <div class="section-number">12 / GOVERNANCE &amp; DASHBOARDS</div>
+
+            <div class="section-title-row">
+                <h2>Senior review &amp; management visibility</h2>
+                <span class="privacy-badge">🔒 Privacy Shield Active</span>
+            </div>
+
+            <div class="dashboard-grid">
+
+                <!-- SENIOR DEVELOPER REVIEW WORKFLOW (FR-17, US-SD-02) -->
+                <div class="dashboard-card">
+                    <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--ink);">
+                        Senior Developer Review Workflow (FR-17)
+                    </h3>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 14px;">
+                        Senior developers can inspect AI-generated explanations and mark them as verified so junior developers have verified references.
+                    </p>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <span style="font-size: 13px; font-weight: 600;">Status:</span>
+                        <strong id="seniorApprovalDisplay" style="color: #2b5520;">Pending Review</strong>
+                    </div>
+                    <button id="seniorApproveButton" type="button" class="secondary-button" style="width: 100%;">
+                        Approve AI Onboarding Guide
+                    </button>
+                </div>
+
+                <!-- ENGINEERING MANAGER VISIBILITY (FR-19, US-EM-01, US-EM-02) -->
+                <div class="dashboard-card">
+                    <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--ink);">
+                        Engineering Manager Reporting (FR-19)
+                    </h3>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 14px;">
+                        Aggregate progress and bottleneck metrics. Individual developer queries remain strictly private (US-EM-02 / DR-06).
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Aggregate Questions Asked:</span>
+                            <strong id="mgmtQueriesCount">0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Onboarding Phase:</span>
+                            <strong>Orientation &amp; Code Reading</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Target Time-to-Contribution:</span>
+                            <strong>&lt; 2 Weeks</strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
 
     </main>
 
@@ -567,19 +626,11 @@
     ====================================================== -->
 
     <footer>
-
-        <span>
-            Codebase Onboarding Companion
-        </span>
-
-        <span>
-            Local analysis workspace
-        </span>
-
+        <span>Codebase Onboarding Companion — Software Engineering IT314</span>
+        <span>Local Analysis Workspace &amp; Offline LLM Grounding</span>
     </footer>
 
 </div>
-
 
 <script src="script.js"></script>
 

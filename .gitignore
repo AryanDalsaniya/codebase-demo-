@@ -10,7 +10,8 @@ __pycache__/
 .env
 
 data/cloned_repo/
-data/project_info.json
+data/*.json
+data/
 
 .vscode/
 .idea/

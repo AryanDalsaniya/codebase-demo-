@@ -132,14 +132,25 @@ def extract_keywords(query):
     return keywords
 
 
-# =========================================================
-# Check Whether File Can Be Searched
-# =========================================================
+# Sensitive files and secrets excluded from AI processing (FR-20, US-SEC-02, DR-03)
+SENSITIVE_PATTERNS = [
+    re.compile(r"^\.env(\..+)?$", re.IGNORECASE),
+    re.compile(r".*\.(pem|key|pkcs12|pfx)$", re.IGNORECASE),
+    re.compile(r".*(id_rsa|id_ed25519).*", re.IGNORECASE),
+    re.compile(r".*(secret|credential|token).*\.(json|yaml|yml|txt|env)$", re.IGNORECASE),
+]
+
+def is_sensitive_file(filename):
+    basename = os.path.basename(filename)
+    return any(pattern.match(basename) for pattern in SENSITIVE_PATTERNS)
 
 def should_search_file(filename):
     """
     Returns True if the file should be searched.
+    Excludes ignored extensions and sensitive files containing credentials/secrets.
     """
+    if is_sensitive_file(filename):
+        return False
 
     extension = os.path.splitext(filename)[1].lower()
 
