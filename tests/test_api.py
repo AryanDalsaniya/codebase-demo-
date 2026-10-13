@@ -82,26 +82,12 @@ class AnalyzeEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
 
-    def test_configured_app_password_protects_api_but_not_health_check(self):
-        with patch.dict(os.environ, {"APP_PASSWORD": "test-password"}):
-            protected = self.client.get(
-                "/summary",
-                headers=self.headers,
-            )
-            authorized = self.client.get(
-                "/summary",
-                headers={
-                    **self.headers,
-                    "X-App-Password": "test-password",
-                },
-            )
-            health = self.client.get("/healthz")
+    def test_healthz_endpoint_returns_ok(self):
+        response = self.client.get("/healthz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
 
-        self.assertEqual(protected.status_code, 401)
-        self.assertNotEqual(authorized.status_code, 401)
-        self.assertEqual(health.status_code, 200)
-
-    def test_onboarding_guide_explains_missing_openai_key(self):
+    def test_onboarding_guide_explains_missing_gemini_key(self):
         project_info = {
             "project_name": "chess",
             "statistics": {"files": 1, "directories": 0},
@@ -118,7 +104,7 @@ class AnalyzeEndpointTests(unittest.TestCase):
 
             with (
                 patch("backend.main.SESSIONS_DIRECTORY", directory),
-                patch.dict(os.environ, {"OPENAI_API_KEY": ""}),
+                patch.dict(os.environ, {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=True),
             ):
                 response = self.client.get(
                     "/onboarding-guide",
@@ -126,7 +112,7 @@ class AnalyzeEndpointTests(unittest.TestCase):
                 )
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn("OPENAI_API_KEY", response.json()["detail"])
+        self.assertIn("GEMINI_API_KEY", response.json()["detail"])
 
     def test_root_serves_frontend(self):
         response = self.client.get("/")

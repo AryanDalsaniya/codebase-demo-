@@ -96,23 +96,9 @@ Requirements:
 """
 
     # -----------------------------------------------------
-    # Call AI Provider (OpenAI if configured, Ollama fallback)
+    # Call AI Provider (Google Gemini API)
     # -----------------------------------------------------
 
-    if os.environ.get("OPENAI_API_KEY", "").strip():
-        from backend.ai_service import generate_ai_response
-        return generate_ai_response(prompt)
-
-    try:
-        import ollama
-        response = ollama.chat(
-            model=os.environ.get("OLLAMA_MODEL", "llama3.2"),
-            messages=[{"role": "user", "content": prompt}]
-        )
-        if response and response.get("message", {}).get("content"):
-            return response["message"]["content"].strip()
-    except Exception as e:
-        print("Ollama error:", repr(e))
-
     from backend.ai_service import generate_ai_response
+
     return generate_ai_response(prompt)

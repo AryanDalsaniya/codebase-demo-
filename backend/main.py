@@ -8,7 +8,6 @@ import os
 import json
 import logging
 import re
-import secrets
 from typing import Optional, List
 
 from analyzer.repository_loader import clone_repository
@@ -37,28 +36,6 @@ app = FastAPI(
     description="AI-powered tool for understanding unfamiliar codebases (Phase 1)",
     version="1.0"
 )
-
-
-@app.middleware("http")
-async def require_app_password(request, call_next):
-    app_password = os.environ.get("APP_PASSWORD", "")
-    public_paths = {"/", "/script.js", "/style.css", "/healthz", "/health"}
-
-    if (
-        app_password
-        and request.method != "OPTIONS"
-        and request.url.path not in public_paths
-        and not secrets.compare_digest(
-            request.headers.get("X-App-Password", ""),
-            app_password,
-        )
-    ):
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Enter the app access password to continue."},
-        )
-
-    return await call_next(request)
 
 
 # =========================================================
@@ -551,7 +528,7 @@ def onboarding_guide(paths: tuple[str, str] = Depends(get_session_paths)):
         }
     except RuntimeError as error:
         logger.error("AI guide could not be generated: %s", error)
-        status_code = 503 if "OPENAI_API_KEY" in str(error) else 502
+        status_code = 503 if ("GEMINI_API_KEY" in str(error) or "GOOGLE_API_KEY" in str(error) or "OpenAI" in str(error)) else 502
         raise HTTPException(status_code=status_code, detail=str(error)) from error
     except Exception as error:
         logger.exception("AI guide generation failed")
@@ -639,7 +616,7 @@ def ask_question(
         }
     except RuntimeError as error:
         logger.error("AI answer could not be generated: %s", error)
-        status_code = 503 if "OPENAI_API_KEY" in str(error) else 502
+        status_code = 503 if ("GEMINI_API_KEY" in str(error) or "GOOGLE_API_KEY" in str(error) or "OpenAI" in str(error)) else 502
         raise HTTPException(status_code=status_code, detail=str(error)) from error
     except Exception as error:
         logger.exception("Codebase answer generation failed")
