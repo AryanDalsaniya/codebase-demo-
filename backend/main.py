@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 import os
 import json
@@ -37,14 +39,42 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def require_app_password(request, call_next):
+    app_password = os.environ.get("APP_PASSWORD", "")
+    public_paths = {"/", "/script.js", "/style.css", "/healthz"}
+
+    if (
+        app_password
+        and request.method != "OPTIONS"
+        and request.url.path not in public_paths
+        and not secrets.compare_digest(
+            request.headers.get("X-App-Password", ""),
+            app_password,
+        )
+    ):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Enter the app access password to continue."},
+        )
+
+    return await call_next(request)
+
+
 # =========================================================
 # CORS Configuration
 # =========================================================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        origin.strip()
+        for origin in os.environ.get(
+            "CORS_ORIGINS",
+            "http://127.0.0.1:5500,http://localhost:5500",
+        ).split(",")
+        if origin.strip()
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -129,7 +159,11 @@ def health_check():
 # =========================================================
 
 @app.post("/analyze")
-def analyze_repository(request: RepositoryRequest):
+def analyze_repository(
+    request: RepositoryRequest,
+    paths: tuple[str, str] = Depends(get_session_paths),
+):
+    repository_path, project_info_path = paths
     repo_url = request.repo_url.strip()
     if not repo_url:
         raise HTTPException(
@@ -141,7 +175,7 @@ def analyze_repository(request: RepositoryRequest):
     try:
         clone_success = clone_repository(
             repo_url,
-            REPOSITORY_PATH,
+            repository_path,
             raise_errors=True
         )
     except ValueError as error:
@@ -163,10 +197,10 @@ def analyze_repository(request: RepositoryRequest):
         )
 
     try:
-        logger.info("Analyzing repository at %s", REPOSITORY_PATH)
-        project_info = generate_project_info(REPOSITORY_PATH)
-        os.makedirs(DATA_DIRECTORY, exist_ok=True)
-        save_project_info(project_info, PROJECT_INFO_PATH)
+        logger.info("Analyzing repository at %s", repository_path)
+        project_info = generate_project_info(repository_path)
+        os.makedirs(os.path.dirname(project_info_path), exist_ok=True)
+        save_project_info(project_info, project_info_path)
     except Exception as error:
         logger.exception("Repository analysis failed")
         raise HTTPException(

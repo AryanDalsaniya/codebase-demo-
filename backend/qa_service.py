@@ -1,9 +1,8 @@
 import ollama
 import re
 
-# =========================================================
-# Generate Codebase Answer
-# =========================================================
+MAX_CONTEXT_LENGTH = 12000
+
 
 def generate_codebase_answer(question, search_results, conversation_history=None):
     """
@@ -29,7 +28,6 @@ def generate_codebase_answer(question, search_results, conversation_history=None
     # -----------------------------------------------------
 
     context_parts = []
-
     for result in search_results:
         file_name = result.get("file", "Unknown file")
         line_number = result.get("line", "Unknown")
@@ -69,10 +67,6 @@ def generate_codebase_answer(question, search_results, conversation_history=None
             "\n\n[Additional search results were omitted "
             "because the context reached the maximum safe window.]"
         )
-
-    # -----------------------------------------------------
-    # Prompt for Llama 3.2
-    # -----------------------------------------------------
 
     prompt = f"""
 You are an expert software engineer helping a junior developer understand an unfamiliar codebase.
