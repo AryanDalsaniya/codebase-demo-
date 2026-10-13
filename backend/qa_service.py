@@ -1,8 +1,8 @@
-import ollama
-import re
+import os
 
-MAX_CONTEXT_LENGTH = 12000
-
+# =========================================================
+# Generate Codebase Answer
+# =========================================================
 
 def generate_codebase_answer(question, search_results, conversation_history=None):
     """
@@ -28,6 +28,7 @@ def generate_codebase_answer(question, search_results, conversation_history=None
     # -----------------------------------------------------
 
     context_parts = []
+
     for result in search_results:
         file_name = result.get("file", "Unknown file")
         line_number = result.get("line", "Unknown")
@@ -68,6 +69,10 @@ def generate_codebase_answer(question, search_results, conversation_history=None
             "because the context reached the maximum safe window.]"
         )
 
+    # -----------------------------------------------------
+    # Prompt for AI model
+    # -----------------------------------------------------
+
     prompt = f"""
 You are an expert software engineer helping a junior developer understand an unfamiliar codebase.
 
@@ -91,37 +96,23 @@ Requirements:
 """
 
     # -----------------------------------------------------
-    # Call Llama 3.2 through Ollama
+    # Call AI Provider (OpenAI if configured, Ollama fallback)
     # -----------------------------------------------------
 
+    if os.environ.get("OPENAI_API_KEY", "").strip():
+        from backend.ai_service import generate_ai_response
+        return generate_ai_response(prompt)
+
     try:
+        import ollama
         response = ollama.chat(
-            model="llama3.2",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+            model=os.environ.get("OLLAMA_MODEL", "llama3.2"),
+            messages=[{"role": "user", "content": prompt}]
         )
-
-        if not response:
-            return "Llama did not return an answer."
-
-        message = response.get("message")
-        if not message:
-            return "Llama returned an unexpected response."
-
-        answer = message.get("content")
-        if not answer:
-            return "Llama returned an empty answer."
-
-        return answer.strip()
-
+        if response and response.get("message", {}).get("content"):
+            return response["message"]["content"].strip()
     except Exception as e:
-        print("Llama error:", repr(e))
-        return (
-            "Could not generate an answer using Llama 3.2. "
-            "Please ensure Ollama is running and the llama3.2 model is downloaded "
-            "(`ollama pull llama3.2`)."
-        )
+        print("Ollama error:", repr(e))
+
+    from backend.ai_service import generate_ai_response
+    return generate_ai_response(prompt)

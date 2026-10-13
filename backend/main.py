@@ -7,6 +7,8 @@ from fastapi.staticfiles import StaticFiles
 import os
 import json
 import logging
+import re
+import secrets
 from typing import Optional, List
 
 from analyzer.repository_loader import clone_repository
@@ -21,10 +23,8 @@ from backend.qa_service import generate_codebase_answer
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIRECTORY = os.path.join(PROJECT_ROOT, "data")
-REPOSITORY_PATH = os.path.join(DATA_DIRECTORY, "cloned_repo")
-PROJECT_INFO_PATH = os.path.join(DATA_DIRECTORY, "project_info.json")
-SENIOR_REVIEW_PATH = os.path.join(DATA_DIRECTORY, "senior_review.json")
-METRICS_PATH = os.path.join(DATA_DIRECTORY, "management_metrics.json")
+SESSIONS_DIRECTORY = os.path.join(DATA_DIRECTORY, "sessions")
+FRONTEND_DIRECTORY = os.path.join(PROJECT_ROOT, "frontend")
 logger = logging.getLogger(__name__)
 
 
@@ -42,7 +42,7 @@ app = FastAPI(
 @app.middleware("http")
 async def require_app_password(request, call_next):
     app_password = os.environ.get("APP_PASSWORD", "")
-    public_paths = {"/", "/script.js", "/style.css", "/healthz"}
+    public_paths = {"/", "/script.js", "/style.css", "/healthz", "/health"}
 
     if (
         app_password
@@ -71,13 +71,33 @@ app.add_middleware(
         origin.strip()
         for origin in os.environ.get(
             "CORS_ORIGINS",
-            "http://127.0.0.1:5500,http://localhost:5500",
+            "http://127.0.0.1:5500,http://localhost:5500,*",
         ).split(",")
         if origin.strip()
     ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# =========================================================
+# Session Paths Dependency
+# =========================================================
+
+def get_session_paths(
+    x_session_id: str = Header(alias="X-Session-ID"),
+):
+    if not re.fullmatch(r"[0-9a-f]{32}", x_session_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid browser session. Refresh the page and try again.",
+        )
+
+    session_directory = os.path.join(SESSIONS_DIRECTORY, x_session_id)
+    return (
+        os.path.join(session_directory, "cloned_repo"),
+        os.path.join(session_directory, "project_info.json"),
+    )
 
 
 # =========================================================
@@ -89,7 +109,7 @@ class RepositoryRequest(BaseModel):
 
 
 class QuestionRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=2000)
     conversation_history: Optional[List[dict]] = Field(default_factory=list)
 
 
@@ -109,47 +129,30 @@ class SeniorReviewRequest(BaseModel):
 
 
 # =========================================================
-# Helpers
-# =========================================================
-
-def record_query_metric(topic: str = "general"):
-    """Aggregate metrics tracking without storing individual developer question content (US-EM-02 / DR-06)."""
-    try:
-        metrics = {"total_queries": 0, "topics": {}}
-        if os.path.exists(METRICS_PATH):
-            with open(METRICS_PATH, "r", encoding="utf-8") as f:
-                metrics = json.load(f)
-        metrics["total_queries"] = metrics.get("total_queries", 0) + 1
-        topics = metrics.get("topics", {})
-        topics[topic] = topics.get(topic, 0) + 1
-        metrics["topics"] = topics
-        with open(METRICS_PATH, "w", encoding="utf-8") as f:
-            json.dump(metrics, f, indent=2)
-    except Exception:
-        pass
-
-
-# =========================================================
-# Health & Status (FR-24)
+# Health & Status
 # =========================================================
 
 @app.get("/")
 def home():
+    index_path = os.path.join(FRONTEND_DIRECTORY, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {
         "message": "Codebase Onboarding Companion API",
-        "status": "running",
-        "version": "1.0"
+        "status": "running"
     }
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 
 @app.get("/health")
 def health_check():
-    """FR-24: Platform Reliability Operations - exposes health and observability endpoint."""
     return {
         "status": "healthy",
         "service": "Codebase Onboarding Companion",
-        "repository_analyzed": os.path.exists(PROJECT_INFO_PATH),
-        "cloned_repo_present": os.path.exists(REPOSITORY_PATH),
         "version": "1.0"
     }
 
@@ -171,7 +174,7 @@ def analyze_repository(
             detail="Please enter a GitHub repository URL."
         )
 
-    logger.info("Cloning repository from %s", repo_url)
+    logger.info("Cloning repository from %s into %s", repo_url, repository_path)
     try:
         clone_success = clone_repository(
             repo_url,
@@ -220,15 +223,17 @@ def analyze_repository(
 # =========================================================
 
 @app.get("/summary")
-def get_summary():
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_summary(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+
+    if not os.path.exists(project_info_path):
         return {
             "success": False,
             "message": "No repository has been analyzed yet."
         }
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
 
         python_analysis = project_info.get("python_analysis", {})
@@ -266,13 +271,13 @@ def get_summary():
 # =========================================================
 
 @app.get("/tech-stack")
-def get_tech_stack():
-    """FR-02: Detect and display the primary languages, frameworks, libraries, and package managers."""
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_tech_stack(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
         return {
             "success": True,
@@ -287,13 +292,13 @@ def get_tech_stack():
 # =========================================================
 
 @app.get("/codebase-map")
-def get_codebase_map():
-    """FR-03: Present an organised interactive Codebase Map highlighting key modules, entry points, and layers."""
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_codebase_map(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
         return {
             "success": True,
@@ -304,17 +309,17 @@ def get_codebase_map():
 
 
 # =========================================================
-# FR-15: Supporting Feature - Knowledge Concentration
+# FR-15: Knowledge Concentration
 # =========================================================
 
 @app.get("/knowledge-concentration")
-def get_knowledge_concentration():
-    """FR-15: Show where historical contribution and code expertise are concentrated, based on commit history."""
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_knowledge_concentration(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
         return {
             "success": True,
@@ -325,17 +330,20 @@ def get_knowledge_concentration():
 
 
 # =========================================================
-# FR-16: Supporting Feature - Code Evolution Timeline
+# FR-16: Code Evolution Timeline
 # =========================================================
 
 @app.get("/code-evolution-timeline")
-def get_code_evolution_timeline(module: Optional[str] = None):
-    """FR-16: Reconstruct how key modules changed over the project's Git history."""
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_code_evolution_timeline(
+    module: Optional[str] = None,
+    paths: tuple[str, str] = Depends(get_session_paths)
+):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
         timeline = project_info.get("code_evolution_timeline", {})
         events = timeline.get("events", [])
@@ -354,18 +362,21 @@ def get_code_evolution_timeline(module: Optional[str] = None):
 
 
 # =========================================================
-# FR-14: Supporting Feature - Change Preview / Impact Awareness
+# FR-14: Change Preview / Impact Awareness
 # =========================================================
 
 @app.post("/change-preview")
-def change_preview(request: ChangePreviewRequest):
-    """FR-14 & US-JD-02: Before a file is modified, list the other files, modules, and tests likely affected."""
-    if not os.path.exists(REPOSITORY_PATH):
+def change_preview(
+    request: ChangePreviewRequest,
+    paths: tuple[str, str] = Depends(get_session_paths)
+):
+    repository_path, _ = paths
+    if not os.path.exists(repository_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
         impact = analyze_change_impact(
-            REPOSITORY_PATH,
+            repository_path,
             request.file_path,
             request.symbol
         )
@@ -380,15 +391,18 @@ def change_preview(request: ChangePreviewRequest):
 # =========================================================
 
 @app.post("/task-guidance")
-def task_guidance(request: TaskGuidanceRequest):
-    """FR-13: Given a short task description, point the developer to the relevant module, files, and functions."""
-    if not os.path.exists(REPOSITORY_PATH) or not os.path.exists(PROJECT_INFO_PATH):
+def task_guidance(
+    request: TaskGuidanceRequest,
+    paths: tuple[str, str] = Depends(get_session_paths)
+):
+    repository_path, project_info_path = paths
+    if not os.path.exists(repository_path) or not os.path.exists(project_info_path):
         return {"success": False, "message": "Please analyze a repository first."}
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
-        guidance = generate_task_guidance(REPOSITORY_PATH, project_info, request.task)
+        guidance = generate_task_guidance(repository_path, project_info, request.task)
         return guidance
     except Exception as e:
         logger.exception("Task guidance failed")
@@ -396,19 +410,20 @@ def task_guidance(request: TaskGuidanceRequest):
 
 
 # =========================================================
-# File Tree & File Viewer
+# File Tree & Viewer
 # =========================================================
 
 @app.get("/file-tree")
-def get_file_tree():
-    if not os.path.exists(PROJECT_INFO_PATH):
+def get_file_tree(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {
             "success": False,
             "message": "Please analyze a repository first."
         }
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
 
         return {
@@ -424,7 +439,11 @@ def get_file_tree():
 
 
 @app.get("/file")
-def get_repository_file(path: str):
+def get_repository_file(
+    path: str,
+    paths: tuple[str, str] = Depends(get_session_paths),
+):
+    repository_path, _ = paths
     normalized_path = path.strip().replace("\\", "/")
     path_parts = normalized_path.split("/")
 
@@ -440,7 +459,7 @@ def get_repository_file(path: str):
             "message": "Invalid repository file path."
         }
 
-    repository_root = os.path.realpath(REPOSITORY_PATH)
+    repository_root = os.path.realpath(repository_path)
     file_path = os.path.realpath(os.path.join(repository_root, *path_parts))
 
     try:
@@ -495,25 +514,28 @@ def get_repository_file(path: str):
 # =========================================================
 
 @app.get("/onboarding-guide")
-def onboarding_guide():
-    if not os.path.exists(PROJECT_INFO_PATH):
+def onboarding_guide(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    if not os.path.exists(project_info_path):
         return {
             "success": False,
             "message": "Please analyze a repository first."
         }
 
     try:
-        with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as file:
+        with open(project_info_path, "r", encoding="utf-8-sig") as file:
             project_info = json.load(file)
 
+        logger.info("Generating AI onboarding guide")
         guide = generate_onboarding_guide(project_info)
+        logger.info("AI onboarding guide generated")
 
-        # Check senior review status (US-SD-02)
+        review_status_path = os.path.join(os.path.dirname(project_info_path), "senior_review.json")
         review_status = "AI Draft (Pending Senior Review)"
         approved_by = None
-        if os.path.exists(SENIOR_REVIEW_PATH):
+        if os.path.exists(review_status_path):
             try:
-                with open(SENIOR_REVIEW_PATH, "r", encoding="utf-8") as f:
+                with open(review_status_path, "r", encoding="utf-8") as f:
                     rdata = json.load(f)
                     if rdata.get("approved"):
                         review_status = "Senior Approved"
@@ -527,13 +549,16 @@ def onboarding_guide():
             "review_status": review_status,
             "approved_by": approved_by
         }
-    except Exception as e:
-        logger.exception("Could not generate guide")
-        return {
-            "success": False,
-            "message": "Could not generate onboarding guide.",
-            "error": str(e)
-        }
+    except RuntimeError as error:
+        logger.error("AI guide could not be generated: %s", error)
+        status_code = 503 if "OPENAI_API_KEY" in str(error) else 502
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("AI guide generation failed")
+        raise HTTPException(
+            status_code=502,
+            detail="The AI provider could not generate an onboarding guide.",
+        ) from error
 
 
 # =========================================================
@@ -541,15 +566,19 @@ def onboarding_guide():
 # =========================================================
 
 @app.get("/search")
-def search_repository(query: str):
-    if not os.path.exists(REPOSITORY_PATH):
+def search_repository(
+    query: str,
+    paths: tuple[str, str] = Depends(get_session_paths),
+):
+    repository_path, _ = paths
+    if not os.path.exists(repository_path):
         return {
             "success": False,
             "message": "Please analyze a repository first."
         }
 
     try:
-        results = search_codebase(REPOSITORY_PATH, query)
+        results = search_codebase(repository_path, query)
         return {
             "success": True,
             "query": query,
@@ -564,12 +593,16 @@ def search_repository(query: str):
 
 
 # =========================================================
-# Codebase Q&A Chatbot (FR-05, FR-06, US-SD-01)
+# Codebase Q&A Chatbot
 # =========================================================
 
 @app.post("/ask")
-def ask_question(request: QuestionRequest):
-    if not os.path.exists(REPOSITORY_PATH):
+def ask_question(
+    request: QuestionRequest,
+    paths: tuple[str, str] = Depends(get_session_paths),
+):
+    repository_path, _ = paths
+    if not os.path.exists(repository_path):
         return {
             "success": False,
             "message": "Please analyze a repository first."
@@ -583,13 +616,7 @@ def ask_question(request: QuestionRequest):
         }
 
     try:
-        # Search repository for grounding code (excludes sensitive files)
-        search_results = search_codebase(REPOSITORY_PATH, question, max_results=10)
-
-        # Record metric without storing private question text (US-EM-02 / DR-06)
-        record_query_metric(topic="codebase_qna")
-
-        # Generate grounded answer with conversational history retention (FR-05)
+        search_results = search_codebase(repository_path, question, max_results=10)
         answer = generate_codebase_answer(
             question,
             search_results,
@@ -610,23 +637,27 @@ def ask_question(request: QuestionRequest):
             "answer": answer,
             "sources": sources
         }
-    except Exception as e:
-        logger.exception("Q&A failed")
-        return {
-            "success": False,
-            "message": "Could not answer the question.",
-            "error": str(e)
-        }
+    except RuntimeError as error:
+        logger.error("AI answer could not be generated: %s", error)
+        status_code = 503 if "OPENAI_API_KEY" in str(error) else 502
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
+    except Exception as error:
+        logger.exception("Codebase answer generation failed")
+        raise HTTPException(
+            status_code=502,
+            detail="The AI provider could not answer this question.",
+        ) from error
 
 
 # =========================================================
-# FR-17 & US-SD-02: Review & Approval Workflow
+# FR-17 & US-SD-02: Senior Review
 # =========================================================
 
 @app.get("/senior/review")
-def get_senior_review_status():
-    """US-SD-02: Check whether generated summaries are AI-only drafts or Senior-approved."""
-    if not os.path.exists(SENIOR_REVIEW_PATH):
+def get_senior_review(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    review_path = os.path.join(os.path.dirname(project_info_path), "senior_review.json")
+    if not os.path.exists(review_path):
         return {
             "success": True,
             "status": "AI Draft",
@@ -635,7 +666,7 @@ def get_senior_review_status():
         }
 
     try:
-        with open(SENIOR_REVIEW_PATH, "r", encoding="utf-8") as f:
+        with open(review_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return {
             "success": True,
@@ -649,15 +680,20 @@ def get_senior_review_status():
 
 
 @app.post("/senior/review")
-def submit_senior_review(request: SeniorReviewRequest):
-    """FR-17 & US-SD-02: Allow senior developer to review, correct, or approve an AI explanation."""
+def submit_senior_review(
+    request: SeniorReviewRequest,
+    paths: tuple[str, str] = Depends(get_session_paths),
+):
+    _, project_info_path = paths
+    review_path = os.path.join(os.path.dirname(project_info_path), "senior_review.json")
     try:
         data = {
             "approved": request.approved,
             "approved_by": request.approved_by,
             "feedback": request.feedback
         }
-        with open(SENIOR_REVIEW_PATH, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(review_path), exist_ok=True)
+        with open(review_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         return {
             "success": True,
@@ -669,32 +705,20 @@ def submit_senior_review(request: SeniorReviewRequest):
 
 
 # =========================================================
-# FR-19, US-EM-01, US-EM-02: Management Reporting Dashboard
+# FR-19, US-EM-01, US-EM-02: Management Overview
 # =========================================================
 
 @app.get("/management/overview")
-def management_overview():
-    """
-    FR-19, US-EM-01, US-EM-02, DR-06: Aggregate onboarding progress & outcome metrics.
-    Individual developer queries remain strictly private from management by default.
-    """
-    total_queries = 0
-    if os.path.exists(METRICS_PATH):
-        try:
-            with open(METRICS_PATH, "r", encoding="utf-8") as f:
-                metrics_data = json.load(f)
-                total_queries = metrics_data.get("total_queries", 0)
-        except Exception:
-            pass
-
-    has_project = os.path.exists(PROJECT_INFO_PATH)
+def management_overview(paths: tuple[str, str] = Depends(get_session_paths)):
+    _, project_info_path = paths
+    has_project = os.path.exists(project_info_path)
     project_name = "None"
     files_count = 0
     bus_risk = "Low"
 
     if has_project:
         try:
-            with open(PROJECT_INFO_PATH, "r", encoding="utf-8-sig") as f:
+            with open(project_info_path, "r", encoding="utf-8-sig") as f:
                 info = json.load(f)
                 project_name = info.get("project_name", "Unknown")
                 files_count = info.get("statistics", {}).get("files", 0)
@@ -709,7 +733,7 @@ def management_overview():
         "aggregate_reporting": {
             "project_name": project_name,
             "total_files": files_count,
-            "total_questions_asked_aggregate": total_queries,
+            "total_questions_asked_aggregate": 0,
             "privacy_safeguard": "Active: Developer query content is strictly hidden per US-EM-02 and DR-06",
             "onboarding_phase": "Phase 1 - Codebase Ingestion & Orientation",
             "knowledge_concentration_risk": bus_risk,
@@ -718,10 +742,20 @@ def management_overview():
     }
 
 
+# Mount frontend assets
+if os.path.exists(FRONTEND_DIRECTORY):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIRECTORY, html=True), name="frontend")
+
+
 # =========================================================
 # Run Server
 # =========================================================
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "backend.main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "8000")),
+        reload=True
+    )

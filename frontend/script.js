@@ -16,7 +16,36 @@ Integrated client script supporting:
 =========================================================
 */
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE =
+    window.location.protocol === "file:" ||
+    window.location.port === "5500"
+        ? "http://127.0.0.1:8000"
+        : "";
+
+let browserSessionId;
+
+function getBrowserSessionId() {
+    if (browserSessionId) {
+        return browserSessionId;
+    }
+    const storageKey = "codebase_companion_session_id";
+    try {
+        const stored = window.sessionStorage.getItem(storageKey);
+        if (stored && /^[0-9a-f]{32}$/.test(stored)) {
+            browserSessionId = stored;
+            return browserSessionId;
+        }
+    } catch {}
+
+    const randomBytes = new Uint8Array(16);
+    window.crypto.getRandomValues(randomBytes);
+    browserSessionId = Array.from(randomBytes, b => b.toString(16).padStart(2, "0")).join("");
+    try {
+        window.sessionStorage.setItem(storageKey, browserSessionId);
+    } catch {}
+    return browserSessionId;
+}
+
 let conversationHistory = [];
 
 /* ========================================================
@@ -65,8 +94,15 @@ function clearError() {
 
 async function apiRequest(endpoint, options = {}) {
     let response;
+    const headers = {
+        "X-Session-ID": getBrowserSessionId(),
+        ...(options.headers || {})
+    };
     try {
-        response = await fetch(API_BASE + endpoint, options);
+        response = await fetch(API_BASE + endpoint, {
+            ...options,
+            headers
+        });
     } catch (error) {
         if (error instanceof TypeError) {
             throw new Error("Could not reach API. Please ensure backend is running at http://127.0.0.1:8000");
